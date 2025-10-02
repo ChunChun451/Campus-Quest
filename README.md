@@ -54,6 +54,6 @@ A modern task board application for campus communities where students can post t
 - Safari
 - Edge
 
-## License
 
-MIT License - feel free to use this project for educational purposes.
+
+
