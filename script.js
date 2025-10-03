@@ -528,12 +528,7 @@ async function displayNotifications() {
     
     try {
         // Get notifications for current user
-        const notificationsSnapshot = await getDocs(
-            query(
-                collection(db, 'notifications'),
-                orderBy('timestamp', 'desc')
-            )
-        );
+        const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
         
         const userNotifs = [];
         notificationsSnapshot.forEach(doc => {
@@ -543,7 +538,18 @@ async function displayNotifications() {
             }
         });
         
+        // Sort by timestamp (newest first)
+        userNotifs.sort((a, b) => {
+            if (!a.timestamp || !b.timestamp) return 0;
+            const aTime = a.timestamp.seconds ? a.timestamp.seconds : 0;
+            const bTime = b.timestamp.seconds ? b.timestamp.seconds : 0;
+            return bTime - aTime;
+        });
+        
         const unreadCount = userNotifs.filter(notif => !notif.read).length;
+        
+        console.log('Notifications found:', userNotifs.length, 'for user:', currentUser);
+        console.log('Unread count:', unreadCount);
         
         // Update notification count
         notificationCount.textContent = unreadCount;
@@ -574,6 +580,8 @@ async function displayNotifications() {
             `;
             notificationList.appendChild(notifElement);
         });
+        
+        console.log('Rendered', userNotifs.length, 'notifications in dropdown');
     } catch (error) {
         console.error('Error displaying notifications:', error);
         notificationList.innerHTML = '<div class="error">Error loading notifications</div>';
@@ -635,9 +643,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     // Add notification bell event listeners
-    document.getElementById('bell-icon').addEventListener('click', function() {
+    document.getElementById('bell-icon').addEventListener('click', async function() {
         const dropdown = document.getElementById('notification-dropdown');
         dropdown.classList.toggle('show');
+        
+        // Refresh notifications when dropdown is opened
+        if (dropdown.classList.contains('show')) {
+            await displayNotifications();
+        }
     });
     
     // Close dropdown when clicking outside
