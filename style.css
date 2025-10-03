@@ -47,7 +47,7 @@ header {
     backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 header::before {
@@ -328,8 +328,9 @@ header h1 {
     width: 350px;
     max-height: 400px;
     overflow-y: auto;
-    z-index: 1000;
+    z-index: 1001;
     display: none;
+    margin-top: 5px;
 }
 
 .notification-dropdown.show {
