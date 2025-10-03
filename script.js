@@ -35,6 +35,27 @@ const db = getFirestore(app);
 // User authentication system
 let currentUser = null;
 
+// Load user from localStorage on page load
+function loadUserFromStorage() {
+    const savedUser = localStorage.getItem('campusQuestUser');
+    if (savedUser) {
+        currentUser = savedUser;
+        updateAuthUI();
+        displayTasks();
+        displayNotifications();
+    }
+}
+
+// Save user to localStorage
+function saveUserToStorage(username) {
+    localStorage.setItem('campusQuestUser', username);
+}
+
+// Clear user from localStorage
+function clearUserFromStorage() {
+    localStorage.removeItem('campusQuestUser');
+}
+
 // Initialize sample data
 async function initializeSampleData() {
     try {
@@ -341,6 +362,7 @@ async function signIn() {
         
         // Successful login
         currentUser = username;
+        saveUserToStorage(username);
         
         // Update UI
         updateAuthUI();
@@ -434,6 +456,7 @@ async function signUp() {
         
         // Successful sign up - auto sign in
         currentUser = username;
+        saveUserToStorage(username);
         
         // Update UI
         updateAuthUI();
@@ -468,6 +491,7 @@ function showSignUpForm() {
 
 async function signOut() {
     currentUser = null;
+    clearUserFromStorage();
     updateAuthUI();
     await displayTasks();
 }
@@ -631,6 +655,9 @@ function hideNotificationPanel() {
 
 // Add event listener to the form
 document.addEventListener('DOMContentLoaded', async function() {
+    // Load user from localStorage first
+    loadUserFromStorage();
+    
     // Initialize with sample data if collections are empty
     await initializeSampleData();
     
