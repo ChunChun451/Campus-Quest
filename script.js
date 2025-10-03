@@ -565,7 +565,7 @@ async function displayNotifications() {
             return;
         }
         
-        // Show notifications in reverse order (newest first)
+        // Show notifications (newest first)
         userNotifs.forEach(notif => {
             const notifElement = document.createElement('div');
             notifElement.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
@@ -578,14 +578,55 @@ async function displayNotifications() {
                 <p>${notif.message}</p>
                 <small>${timestamp}</small>
             `;
+            
+            // Add click handler to mark as read
+            notifElement.addEventListener('click', async () => {
+                if (!notif.read) {
+                    await markNotificationAsRead(notif.id);
+                }
+            });
+            
             notificationList.appendChild(notifElement);
         });
         
-        console.log('Rendered', userNotifs.length, 'notifications in dropdown');
+        console.log('Rendered', userNotifs.length, 'notifications in panel');
     } catch (error) {
         console.error('Error displaying notifications:', error);
         notificationList.innerHTML = '<div class="error">Error loading notifications</div>';
     }
+}
+
+// Function to mark notification as read
+async function markNotificationAsRead(notificationId) {
+    try {
+        await updateDoc(doc(db, 'notifications', notificationId), {
+            read: true
+        });
+        await displayNotifications(); // Refresh the display
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+    }
+}
+
+// Function to show notification panel
+function showNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    const overlay = document.getElementById('notification-overlay');
+    
+    panel.classList.add('show');
+    overlay.classList.add('show');
+    
+    // Refresh notifications when panel opens
+    displayNotifications();
+}
+
+// Function to hide notification panel
+function hideNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    const overlay = document.getElementById('notification-overlay');
+    
+    panel.classList.remove('show');
+    overlay.classList.remove('show');
 }
 
 // Add event listener to the form
@@ -643,23 +684,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     // Add notification bell event listeners
-    document.getElementById('bell-icon').addEventListener('click', async function() {
-        const dropdown = document.getElementById('notification-dropdown');
-        dropdown.classList.toggle('show');
-        
-        // Refresh notifications when dropdown is opened
-        if (dropdown.classList.contains('show')) {
-            await displayNotifications();
-        }
+    document.getElementById('bell-icon').addEventListener('click', function() {
+        showNotificationPanel();
     });
     
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        const bell = document.getElementById('bell-icon');
-        const dropdown = document.getElementById('notification-dropdown');
-        if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.remove('show');
-        }
+    // Close panel when clicking overlay
+    document.getElementById('notification-overlay').addEventListener('click', function() {
+        hideNotificationPanel();
+    });
+    
+    // Close panel button
+    document.getElementById('close-notifications').addEventListener('click', function() {
+        hideNotificationPanel();
     });
     
     // Clear notifications button
@@ -667,9 +703,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (currentUser && db) {
             try {
                 // Get all notifications for current user
-                const notificationsSnapshot = await getDocs(
-                    query(collection(db, 'notifications'))
-                );
+                const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
                 
                 // Delete each notification
                 const deletePromises = [];
