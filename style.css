@@ -768,3 +768,26 @@ button[type="submit"]:active {
     opacity: 1;
 }
 
+/* Error message styling */
+.error {
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff6b6b;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.no-tasks {
+    text-align: center;
+    color: #a0aec0;
+    font-style: italic;
+    padding: 2rem;
+    background: rgba(45, 45, 70, 0.3);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+

@@ -1,5 +1,8 @@
-// Import Firestore functions
+// Import Firebase functions
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import { 
+    getFirestore,
     collection, 
     doc, 
     getDocs, 
@@ -13,21 +16,24 @@ import {
     serverTimestamp 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+// Your web app's Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyAILEPqpSE8c-Qr_7rSZvZkwRNCL-CwtAI",
+    authDomain: "campus-quest-3e381.firebaseapp.com",
+    projectId: "campus-quest-3e381",
+    storageBucket: "campus-quest-3e381.firebasestorage.app",
+    messagingSenderId: "498855301825",
+    appId: "1:498855301825:web:11df6a5382cc53c4fe7a40",
+    measurementId: "G-8ZK4N4SN4H"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
 // User authentication system
 let currentUser = null;
-let db = null;
-
-// Initialize database reference
-function initDatabase() {
-    db = window.db;
-    if (!db) {
-        console.error('Firebase not initialized');
-        return;
-    }
-    
-    // Initialize with sample data if collections are empty
-    initializeSampleData();
-}
 
 // Initialize sample data
 async function initializeSampleData() {
@@ -566,8 +572,8 @@ async function displayNotifications() {
 
 // Add event listener to the form
 document.addEventListener('DOMContentLoaded', async function() {
-    // Initialize database
-    initDatabase();
+    // Initialize with sample data if collections are empty
+    await initializeSampleData();
     
     const form = document.querySelector('form');
     form.addEventListener('submit', handleFormSubmit);
