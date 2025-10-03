@@ -317,17 +317,14 @@ async function signIn() {
         // Query users collection for the username
         const usersSnapshot = await getDocs(query(collection(db, 'users')));
         let userFound = false;
+        let passwordCorrect = false;
         
         usersSnapshot.forEach(doc => {
             const userData = doc.data();
             if (userData.username === username) {
+                userFound = true;
                 if (userData.password === password) {
-                    // Successful login
-                    currentUser = username;
-                    userFound = true;
-                } else {
-                    showSignInError('Incorrect password. Please try again.');
-                    return;
+                    passwordCorrect = true;
                 }
             }
         });
@@ -336,6 +333,14 @@ async function signIn() {
             showSignInError('User not found. Please check your username.');
             return;
         }
+        
+        if (!passwordCorrect) {
+            showSignInError('Incorrect password. Please try again.');
+            return;
+        }
+        
+        // Successful login
+        currentUser = username;
         
         // Update UI
         updateAuthUI();
@@ -406,14 +411,19 @@ async function signUp() {
     try {
         // Check if user already exists
         const usersSnapshot = await getDocs(query(collection(db, 'users')));
+        let userExists = false;
         
         usersSnapshot.forEach(doc => {
             const userData = doc.data();
             if (userData.username === username) {
-                showSignUpError('Username already exists. Please choose a different one.');
-                return;
+                userExists = true;
             }
         });
+        
+        if (userExists) {
+            showSignUpError('Username already exists. Please choose a different one.');
+            return;
+        }
         
         // Create new user
         await addDoc(collection(db, 'users'), {
