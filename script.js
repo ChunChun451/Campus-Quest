@@ -36,19 +36,24 @@ const db = getFirestore(app);
 let currentUser = null;
 
 // Load user from localStorage on page load
-function loadUserFromStorage() {
+async function loadUserFromStorage() {
     const savedUser = localStorage.getItem('campusQuestUser');
+    console.log('Loading user from storage:', savedUser);
     if (savedUser) {
         currentUser = savedUser;
+        console.log('User loaded from storage:', currentUser);
         updateAuthUI();
-        displayTasks();
-        displayNotifications();
+        await displayTasks();
+        await displayNotifications();
+    } else {
+        console.log('No saved user found');
     }
 }
 
 // Save user to localStorage
 function saveUserToStorage(username) {
     localStorage.setItem('campusQuestUser', username);
+    console.log('User saved to storage:', username);
 }
 
 // Clear user from localStorage
@@ -656,7 +661,7 @@ function hideNotificationPanel() {
 // Add event listener to the form
 document.addEventListener('DOMContentLoaded', async function() {
     // Load user from localStorage first
-    loadUserFromStorage();
+    await loadUserFromStorage();
     
     // Initialize with sample data if collections are empty
     await initializeSampleData();
