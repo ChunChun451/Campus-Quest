@@ -40,6 +40,14 @@ const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// Debug Firebase initialization
+console.log('Firebase initialized:', {
+    app: app.name,
+    auth: auth.currentUser,
+    analytics: analytics,
+    db: db
+});
+
 // User authentication system
 let currentUser = null;
 
@@ -324,10 +332,14 @@ async function handleApplyClick(event) {
 
 // Firebase Authentication function for sign up with email verification
 async function handleSignUp() {
+    console.log('handleSignUp function called');
+    
     const email = document.getElementById('new-email').value.trim();
     const password = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     const errorDiv = document.getElementById('signup-error');
+    
+    console.log('Form values:', { email, password: password ? '***' : 'empty', confirmPassword: confirmPassword ? '***' : 'empty' });
     
     // Clear previous errors
     errorDiv.style.display = 'none';
@@ -335,9 +347,12 @@ async function handleSignUp() {
     
     // Validate email domain
     if (!email.endsWith('@iitj.ac.in')) {
+        console.log('Email domain validation failed');
         alert('Error: Only IITJ email accounts are allowed.');
         return;
     }
+    
+    console.log('Email domain validation passed');
     
     // Validate password confirmation
     if (password !== confirmPassword) {
@@ -351,12 +366,19 @@ async function handleSignUp() {
     }
     
     try {
+        console.log('Attempting to create user with Firebase Auth');
+        console.log('Auth object:', auth);
+        
         // Create user with Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
+        console.log('User created successfully:', user.uid);
+        
         // Send email verification
+        console.log('Sending email verification...');
         await sendEmailVerification(user);
+        console.log('Email verification sent successfully');
         
         // Show success message
         alert('Account created successfully! Please check your IITJ email to verify your account.');
@@ -368,6 +390,8 @@ async function handleSignUp() {
         
     } catch (error) {
         console.error('Firebase Auth error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         
         // Handle specific Firebase errors
         switch (error.code) {
