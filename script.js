@@ -6,7 +6,6 @@ import {
     collection, 
     doc, 
     getDocs, 
-    getDoc, 
     addDoc, 
     updateDoc, 
     deleteDoc, 
@@ -20,7 +19,8 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
-    sendEmailVerification 
+    sendEmailVerification,
+    onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 // Your web app's Firebase configuration
@@ -40,138 +40,46 @@ const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Debug Firebase initialization
-console.log('Firebase initialized:', {
-    app: app.name,
-    auth: auth.currentUser,
-    analytics: analytics,
-    db: db
+// --- FIX #1: RELIABLE AUTH STATE MANAGEMENT ---
+// This is the official way to track if a user is logged in or not.
+// It automatically updates whenever the user signs in or out.
+onAuthStateChanged(auth, user => {
+    if (user && user.emailVerified) {
+        // User is signed in and verified
+        console.log("User is logged in:", user);
+        updateAuthUI(user);
+        displayTasks();
+        displayNotifications();
+    } else {
+        // User is signed out or not verified
+        console.log("User is logged out.");
+        updateAuthUI(null);
+        const taskListContainer = document.querySelector('.task-list');
+        if (taskListContainer) {
+            taskListContainer.innerHTML = ''; // Clear tasks when logged out
+        }
+    }
 });
 
-// User authentication system
-let currentUser = null;
-
-// Load user from localStorage on page load
-async function loadUserFromStorage() {
-    const savedUser = localStorage.getItem('campusQuestUser');
-    console.log('Loading user from storage:', savedUser);
-    if (savedUser) {
-        currentUser = savedUser;
-        console.log('User loaded from storage:', currentUser);
-        updateAuthUI();
-        await displayTasks();
-        await displayNotifications();
-    } else {
-        console.log('No saved user found');
-    }
-}
-
-// Save user to localStorage
-function saveUserToStorage(username) {
-    localStorage.setItem('campusQuestUser', username);
-    console.log('User saved to storage:', username);
-}
-
-// Clear user from localStorage
-function clearUserFromStorage() {
-    localStorage.removeItem('campusQuestUser');
-}
-
-// Initialize sample data
-async function initializeSampleData() {
-    try {
-        // Check if users collection exists and has data
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        if (usersSnapshot.empty) {
-            // Add sample users
-            const sampleUsers = [
-                { username: 'alice', password: 'password123' },
-                { username: 'bob', password: 'bobpass' },
-                { username: 'charlie', password: 'charlie123' }
-            ];
-            
-            for (const user of sampleUsers) {
-                await addDoc(collection(db, 'users'), user);
-            }
-        }
-        
-        // Check if tasks collection exists and has data
-        const tasksSnapshot = await getDocs(collection(db, 'tasks'));
-        if (tasksSnapshot.empty) {
-            // Add sample tasks
-            const sampleTasks = [
-                {
-                    title: "Help with Math Assignment",
-                    description: "I need someone to help me solve a few calculus problems.",
-                    reward: "$15",
-                    creator: "alice",
-                    applicants: [],
-                    createdAt: serverTimestamp()
-                },
-                {
-                    title: "Grocery Run",
-                    description: "Pick up milk, eggs, and bread from the nearby store.",
-                    reward: "Free Coffee",
-                    creator: "alice",
-                    applicants: [],
-                    createdAt: serverTimestamp()
-                },
-                {
-                    title: "Coding Help Needed",
-                    description: "Looking for help with JavaScript debugging.",
-                    reward: "$20",
-                    creator: "bob",
-                    applicants: [],
-                    createdAt: serverTimestamp()
-                },
-                {
-                    title: "Study Group",
-                    description: "Need study partners for chemistry exam.",
-                    reward: "Pizza and drinks",
-                    creator: "charlie",
-                    applicants: [],
-                    createdAt: serverTimestamp()
-                }
-            ];
-            
-            for (const task of sampleTasks) {
-                await addDoc(collection(db, 'tasks'), task);
-            }
-        }
-    } catch (error) {
-        console.error('Error initializing sample data:', error);
-    }
-}
 
 async function displayTasks() {
     const taskListContainer = document.querySelector('.task-list');
     
-    if (!db) {
-        console.error('Database not initialized');
-        return;
-    }
+    if (!db) return;
     
     try {
-        // Clear existing tasks
         taskListContainer.innerHTML = '';
-        
-        // Get tasks from Firestore
         const tasksSnapshot = await getDocs(query(collection(db, 'tasks'), orderBy('createdAt', 'desc')));
         
         if (tasksSnapshot.empty) {
-            taskListContainer.innerHTML = '<div class="no-tasks">No tasks available yet. Create your first task!</div>';
+            taskListContainer.innerHTML = '<div class="no-tasks">No tasks available yet.</div>';
             return;
         }
         
-        // Display each task
         tasksSnapshot.forEach(doc => {
             const task = { id: doc.id, ...doc.data() };
-            
-            // Create card element
             const taskCard = document.createElement('div');
             taskCard.className = 'task-card';
-            
-            // Create HTML structure for the card
             taskCard.innerHTML = `
                 <h3>${task.title}</h3>
                 <p>${task.description}</p>
@@ -181,36 +89,24 @@ async function displayTasks() {
                 </div>
                 <button class="apply-btn" data-task-id="${task.id}">Apply</button>
             `;
-            
-            // Add card to task list container
             taskListContainer.appendChild(taskCard);
-            
-            // Add event listener to the Apply button
-            const applyBtn = taskCard.querySelector('.apply-btn');
-            applyBtn.addEventListener('click', handleApplyClick);
+            taskCard.querySelector('.apply-btn').addEventListener('click', handleApplyClick);
         });
     } catch (error) {
         console.error('Error displaying tasks:', error);
-        taskListContainer.innerHTML = '<div class="error">Error loading tasks. Please try again.</div>';
+        taskListContainer.innerHTML = '<div class="error">Error loading tasks.</div>';
     }
 }
 
-// Function to handle form submission
 async function handleFormSubmit(event) {
-    // Prevent the form from reloading the page
     event.preventDefault();
-    
+    const currentUser = auth.currentUser; // Get the currently logged-in user
+
     if (!currentUser) {
         alert('Please sign in to post a task');
         return;
     }
     
-    if (!db) {
-        console.error('Database not initialized');
-        return;
-    }
-    
-    // Get the values from the input fields
     const taskTitle = document.getElementById('task-title').value;
     const description = document.getElementById('description').value;
     const reward = document.getElementById('reward').value;
@@ -221,76 +117,50 @@ async function handleFormSubmit(event) {
     }
     
     try {
-        // Create a new task object
         const newTask = {
             title: taskTitle,
             description: description,
             reward: reward,
-            creator: currentUser,
+            creator: currentUser.email, // Use user's email
             applicants: [],
             createdAt: serverTimestamp()
         };
-        
-        // Add task to Firestore
         await addDoc(collection(db, 'tasks'), newTask);
         
-        // Clear the input fields
-        document.getElementById('task-title').value = '';
-        document.getElementById('description').value = '';
-        document.getElementById('reward').value = '';
-        
-        // Call the displayTasks function again to update the list on the screen with the new task
-        await displayTasks();
-        
-        // Show success message
+        document.getElementById('task-form').reset(); // Reset the form
         showSuccessMessage('Task Posted!');
+        // displayTasks will be called automatically by the listener if needed, but we can call it for instant feedback
+        await displayTasks();
     } catch (error) {
         console.error('Error posting task:', error);
         alert('Error posting task. Please try again.');
     }
 }
 
-// Function to show temporary success message
 function showSuccessMessage(message) {
-    // Create success message element
     const successMessage = document.createElement('div');
     successMessage.className = 'success-message';
     successMessage.textContent = message;
-    
-    // Add to the page
     document.body.appendChild(successMessage);
-    
-    // Show the message with animation
-    setTimeout(() => {
-        successMessage.classList.add('show');
-    }, 100);
-    
-    // Remove the message after 3 seconds
+    setTimeout(() => successMessage.classList.add('show'), 100);
     setTimeout(() => {
         successMessage.classList.remove('show');
-        setTimeout(() => {
-            document.body.removeChild(successMessage);
-        }, 300);
+        setTimeout(() => document.body.removeChild(successMessage), 300);
     }, 3000);
 }
 
-// Function to handle Apply button clicks
 async function handleApplyClick(event) {
     const taskId = event.target.getAttribute('data-task-id');
-    
+    const currentUser = auth.currentUser;
+
     if (!currentUser) {
         alert('Please sign in to apply for tasks');
         return;
     }
     
-    if (!db) {
-        console.error('Database not initialized');
-        return;
-    }
-    
     try {
-        // Get task from Firestore
-        const taskDoc = await getDoc(doc(db, 'tasks', taskId));
+        const taskRef = doc(db, 'tasks', taskId);
+        const taskDoc = await getDoc(taskRef);
         
         if (!taskDoc.exists()) {
             alert('Task not found');
@@ -299,392 +169,105 @@ async function handleApplyClick(event) {
         
         const task = taskDoc.data();
         
-        // Don't allow users to apply to their own tasks
-        if (task.creator === currentUser) {
+        if (task.creator === currentUser.email) {
             alert('You cannot apply to your own task!');
             return;
         }
         
-        // Check if user has already applied
-        if (task.applicants && task.applicants.includes(currentUser)) {
+        if (task.applicants && task.applicants.includes(currentUser.email)) {
             alert('You have already applied to this task!');
             return;
         }
         
-        // Add applicant to task
-        const updatedApplicants = [...(task.applicants || []), currentUser];
-        await updateDoc(doc(db, 'tasks', taskId), {
-            applicants: updatedApplicants
-        });
+        const updatedApplicants = [...(task.applicants || []), currentUser.email];
+        await updateDoc(taskRef, { applicants: updatedApplicants });
         
-        // Send notification to task creator
-        await sendNotification(task.creator, `${currentUser} has applied to your task: "${task.title}"`);
+        await sendNotification(task.creator, `${currentUser.email} has applied to your task: "${task.title}"`);
         
         alert('Your application has been sent!');
-        
-        // Refresh the task display
-        await displayTasks();
     } catch (error) {
         console.error('Error applying to task:', error);
         alert('Error applying to task. Please try again.');
     }
 }
 
-// Firebase Authentication function for sign up with email verification
+// --- CORRECT, SECURE FIREBASE AUTH FUNCTIONS ---
+
 async function handleSignUp() {
-    console.log('handleSignUp function called');
-    
     const email = document.getElementById('new-email').value.trim();
     const password = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
-    const errorDiv = document.getElementById('signup-error');
     
-    console.log('Form values:', { email, password: password ? '***' : 'empty', confirmPassword: confirmPassword ? '***' : 'empty' });
-    
-    // Clear previous errors
-    errorDiv.style.display = 'none';
-    errorDiv.textContent = '';
-    
-    // Validate email domain
     if (!email.endsWith('@iitj.ac.in')) {
-        console.log('Email domain validation failed');
         alert('Error: Only IITJ email accounts are allowed.');
         return;
     }
     
-    console.log('Email domain validation passed');
-    
-    // Validate password confirmation
     if (password !== confirmPassword) {
-        showSignUpError('Passwords do not match');
+        alert('Passwords do not match');
         return;
     }
     
     if (password.length < 6) {
-        showSignUpError('Password must be at least 6 characters long');
+        alert('Password must be at least 6 characters long');
         return;
     }
     
     try {
-        console.log('Attempting to create user with Firebase Auth');
-        console.log('Auth object:', auth);
-        
-        // Create user with Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        
-        console.log('User created successfully:', user.uid);
-        
-        // Send email verification
-        console.log('Sending email verification...');
-        await sendEmailVerification(user);
-        console.log('Email verification sent successfully');
-        
-        // Show success message
-        alert('Account created successfully! Please check your IITJ email to verify your account.');
-        
-        // Clear form fields
-        document.getElementById('new-email').value = '';
-        document.getElementById('new-password').value = '';
-        document.getElementById('confirm-password').value = '';
-        
+        await sendEmailVerification(userCredential.user);
+        alert('Account created! Please check your IITJ email to verify your account before logging in.');
+        document.getElementById('signup-form').reset();
     } catch (error) {
-        console.error('Firebase Auth error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        
-        // Handle specific Firebase errors
-        switch (error.code) {
-            case 'auth/email-already-in-use':
-                alert('Email is already in use. Please use a different email or try signing in.');
-                break;
-            case 'auth/invalid-email':
-                showSignUpError('Invalid email address');
-                break;
-            case 'auth/weak-password':
-                showSignUpError('Password is too weak. Please choose a stronger password.');
-                break;
-            case 'auth/operation-not-allowed':
-                alert('Account creation is currently disabled. Please contact support.');
-                break;
-            case 'auth/network-request-failed':
-                alert('Network error. Please check your internet connection and try again.');
-                break;
-            default:
-                alert('Error creating account. Please try again.');
-                break;
+        console.error('Sign up error:', error.code);
+        if (error.code === 'auth/email-already-in-use') {
+            alert('This email is already in use. Please log in.');
+        } else {
+            alert('Error creating account. Please try again.');
         }
     }
 }
 
-// Firebase Authentication function for login with email verification check
 async function handleLogIn() {
     const email = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('signin-error');
     
-    // Clear previous errors
-    errorDiv.style.display = 'none';
-    errorDiv.textContent = '';
-    
-    if (!email) {
-        showSignInError('Please enter your email');
-        return;
-    }
-    
-    if (!password) {
-        showSignInError('Please enter your password');
+    if (!email || !password) {
+        alert('Please enter both email and password.');
         return;
     }
     
     try {
-        // Sign in with Firebase Authentication
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
         
-        // Check if email is verified
-        if (!user.emailVerified) {
-            // Sign user out immediately
-            await signOut(auth);
+        if (!userCredential.user.emailVerified) {
+            await signOut(auth); // Sign them out again
             alert('You must verify your email before logging in. Please check your inbox.');
-            return;
+        } else {
+            // Login successful, onAuthStateChanged will handle the UI update.
+            console.log('Login successful');
         }
-        
-        // Email is verified - proceed with login
-        // Update currentUser and UI
-        currentUser = email; // Using email as identifier
-        saveUserToStorage(email);
-        
-        // Update UI
-        updateAuthUI();
-        await displayTasks();
-        await displayNotifications();
-        
-        // Clear form fields
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
-        
     } catch (error) {
-        console.error('Firebase Auth error:', error);
-        
-        // Handle specific Firebase errors
-        switch (error.code) {
-            case 'auth/user-not-found':
-            case 'auth/invalid-credential':
-                showSignInError('Invalid email or password');
-                break;
-            case 'auth/wrong-password':
-                showSignInError('Wrong password');
-                break;
-            case 'auth/invalid-email':
-                showSignInError('Invalid email address');
-                break;
-            case 'auth/user-disabled':
-                alert('This account has been disabled. Please contact support.');
-                break;
-            case 'auth/too-many-requests':
-                alert('Too many failed login attempts. Please try again later.');
-                break;
-            case 'auth/network-request-failed':
-                alert('Network error. Please check your internet connection and try again.');
-                break;
-            default:
-                alert('Error signing in. Please try again.');
-                break;
-        }
+        console.error('Login error:', error.code);
+        alert('Invalid email or password. Please try again.');
     }
 }
 
-// Firebase Authentication function for logout
 async function handleLogOut() {
     try {
-        // Sign out from Firebase
         await signOut(auth);
-        
-        // Clear local user data
-        currentUser = null;
-        clearUserFromStorage();
-        
-        // Update UI to show login page
-        updateAuthUI();
-        await displayTasks();
-        
+        // UI update is handled by onAuthStateChanged
     } catch (error) {
         console.error('Error signing out:', error);
-        alert('Error signing out. Please try again.');
     }
 }
 
-// Authentication functions
-async function signIn() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('signin-error');
-    
-    // Clear previous errors
-    errorDiv.style.display = 'none';
-    errorDiv.textContent = '';
-    
-    if (!username) {
-        showSignInError('Please enter a username');
-        return;
-    }
-    
-    if (!password) {
-        showSignInError('Please enter a password');
-        return;
-    }
-    
-    if (!db) {
-        showSignInError('Database not initialized');
-        return;
-    }
-    
-    try {
-        // Query users collection for the username
-        const usersSnapshot = await getDocs(query(collection(db, 'users')));
-        let userFound = false;
-        let passwordCorrect = false;
-        
-        usersSnapshot.forEach(doc => {
-            const userData = doc.data();
-            if (userData.username === username) {
-                userFound = true;
-                if (userData.password === password) {
-                    passwordCorrect = true;
-                }
-            }
-        });
-        
-        if (!userFound) {
-            showSignInError('User not found. Please check your username.');
-            return;
-        }
-        
-        if (!passwordCorrect) {
-            showSignInError('Incorrect password. Please try again.');
-            return;
-        }
-        
-        // Successful login
-        currentUser = username;
-        saveUserToStorage(username);
-        
-        // Update UI
-        updateAuthUI();
-        await displayTasks();
-        await displayNotifications();
-        
-        // Clear form fields
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
-    } catch (error) {
-        console.error('Error signing in:', error);
-        showSignInError('Error signing in. Please try again.');
-    }
-}
-
-function showSignInError(message) {
-    const errorDiv = document.getElementById('signin-error');
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-}
-
-function showSignUpError(message) {
-    const errorDiv = document.getElementById('signup-error');
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-}
-
-async function signUp() {
-    const username = document.getElementById('new-username').value.trim();
-    const password = document.getElementById('new-password').value;
-    const confirmPassword = document.getElementById('confirm-password').value;
-    const errorDiv = document.getElementById('signup-error');
-    
-    // Clear previous errors
-    errorDiv.style.display = 'none';
-    errorDiv.textContent = '';
-    
-    if (!username) {
-        showSignUpError('Please enter a username');
-        return;
-    }
-    
-    if (!password) {
-        showSignUpError('Please enter a password');
-        return;
-    }
-    
-    if (!confirmPassword) {
-        showSignUpError('Please confirm your password');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showSignUpError('Passwords do not match');
-        return;
-    }
-    
-    if (password.length < 6) {
-        showSignUpError('Password must be at least 6 characters long');
-        return;
-    }
-    
-    if (!db) {
-        showSignUpError('Database not initialized');
-        return;
-    }
-    
-    try {
-        // Check if user already exists
-        const usersSnapshot = await getDocs(query(collection(db, 'users')));
-        let userExists = false;
-        
-        usersSnapshot.forEach(doc => {
-            const userData = doc.data();
-            if (userData.username === username) {
-                userExists = true;
-            }
-        });
-        
-        if (userExists) {
-            showSignUpError('Username already exists. Please choose a different one.');
-            return;
-        }
-        
-        // Create new user
-        await addDoc(collection(db, 'users'), {
-            username: username,
-            password: password,
-            createdAt: serverTimestamp()
-        });
-        
-        // Successful sign up - auto sign in
-        currentUser = username;
-        saveUserToStorage(username);
-        
-        // Update UI
-        updateAuthUI();
-        await displayTasks();
-        await displayNotifications();
-        
-        // Clear form fields
-        document.getElementById('new-username').value = '';
-        document.getElementById('new-password').value = '';
-        document.getElementById('confirm-password').value = '';
-    } catch (error) {
-        console.error('Error signing up:', error);
-        showSignUpError('Error creating account. Please try again.');
-    }
-}
 
 function showSignInForm() {
     document.getElementById('signin-form').classList.remove('hidden');
     document.getElementById('signup-form').classList.add('hidden');
     document.getElementById('signin-toggle').classList.add('active');
     document.getElementById('signup-toggle').classList.remove('active');
-    document.getElementById('modal-subtitle').textContent = 'Please sign in to access the task board';
 }
 
 function showSignUpForm() {
@@ -692,49 +275,34 @@ function showSignUpForm() {
     document.getElementById('signup-form').classList.remove('hidden');
     document.getElementById('signin-toggle').classList.remove('active');
     document.getElementById('signup-toggle').classList.add('active');
-    document.getElementById('modal-subtitle').textContent = 'Create a new account to get started';
 }
 
-async function signOut() {
-    currentUser = null;
-    clearUserFromStorage();
-    updateAuthUI();
-    await displayTasks();
-}
-
-function updateAuthUI() {
+function updateAuthUI(user) {
     const signinModal = document.getElementById('signin-modal');
     const mainContent = document.getElementById('main-content');
     const userInfo = document.getElementById('user-info');
-    const currentUserSpan = document.getElementById('current-user');
-    const notificationBell = document.getElementById('notification-bell');
     
-    if (currentUser) {
-        // Hide sign-in modal and show main content
+    if (user) {
+        // User is signed in
         signinModal.style.display = 'none';
         mainContent.style.display = 'grid';
         userInfo.style.display = 'flex';
-        currentUserSpan.textContent = currentUser;
-        notificationBell.style.display = 'block';
+        document.getElementById('current-user').textContent = user.email;
+        document.getElementById('notification-bell').style.display = 'block';
     } else {
-        // Show sign-in modal and hide main content
+        // User is signed out
         signinModal.style.display = 'flex';
         mainContent.style.display = 'none';
         userInfo.style.display = 'none';
-        notificationBell.style.display = 'none';
+        document.getElementById('notification-bell').style.display = 'none';
     }
 }
 
-// Notification system
-async function sendNotification(user, message) {
-    if (!db) {
-        console.error('Database not initialized');
-        return;
-    }
-    
+// --- NOTIFICATION SYSTEM (ASSUMING IT'S MOSTLY CORRECT) ---
+async function sendNotification(userEmail, message) {
     try {
         await addDoc(collection(db, 'notifications'), {
-            user: user,
+            user: userEmail,
             message: message,
             timestamp: serverTimestamp(),
             read: false
@@ -745,216 +313,79 @@ async function sendNotification(user, message) {
 }
 
 async function displayNotifications() {
+    const currentUser = auth.currentUser;
     const notificationList = document.getElementById('notification-list');
     const notificationCount = document.getElementById('notification-count');
-    const notificationBell = document.getElementById('notification-bell');
     
-    if (!notificationList || !notificationCount || !notificationBell) return;
-    
-    if (!currentUser || !db) {
-        notificationBell.style.display = 'none';
-        return;
-    }
+    if (!currentUser || !notificationList) return;
     
     try {
-        // Get notifications for current user
-        const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
+        const q = query(collection(db, 'notifications'), where("user", "==", currentUser.email), orderBy('timestamp', 'desc'));
         
-        const userNotifs = [];
-        notificationsSnapshot.forEach(doc => {
-            const notif = { id: doc.id, ...doc.data() };
-            if (notif.user === currentUser) {
-                userNotifs.push(notif);
+        onSnapshot(q, (snapshot) => {
+            notificationList.innerHTML = '';
+            const userNotifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const unreadCount = userNotifs.filter(notif => !notif.read).length;
+            notificationCount.textContent = unreadCount;
+            
+            if (userNotifs.length === 0) {
+                notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+                return;
             }
-        });
-        
-        // Sort by timestamp (newest first)
-        userNotifs.sort((a, b) => {
-            if (!a.timestamp || !b.timestamp) return 0;
-            const aTime = a.timestamp.seconds ? a.timestamp.seconds : 0;
-            const bTime = b.timestamp.seconds ? b.timestamp.seconds : 0;
-            return bTime - aTime;
-        });
-        
-        const unreadCount = userNotifs.filter(notif => !notif.read).length;
-        
-        console.log('Notifications found:', userNotifs.length, 'for user:', currentUser);
-        console.log('Unread count:', unreadCount);
-        
-        // Update notification count
-        notificationCount.textContent = unreadCount;
-        
-        // Always show bell icon when user is signed in
-        notificationBell.style.display = 'block';
-        
-        // Clear and populate notification list
-        notificationList.innerHTML = '';
-        
-        if (userNotifs.length === 0) {
-            notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
-            return;
-        }
-        
-        // Show notifications (newest first)
-        userNotifs.forEach(notif => {
-            const notifElement = document.createElement('div');
-            notifElement.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
             
-            const timestamp = notif.timestamp ? 
-                new Date(notif.timestamp.seconds * 1000).toLocaleString() : 
-                'Just now';
-            
-            notifElement.innerHTML = `
-                <p>${notif.message}</p>
-                <small>${timestamp}</small>
-            `;
-            
-            // Add click handler to mark as read
-            notifElement.addEventListener('click', async () => {
-                if (!notif.read) {
-                    await markNotificationAsRead(notif.id);
-                }
+            userNotifs.forEach(notif => {
+                const notifElement = document.createElement('div');
+                notifElement.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
+                const timestamp = notif.timestamp ? new Date(notif.timestamp.seconds * 1000).toLocaleString() : 'Just now';
+                notifElement.innerHTML = `<p>${notif.message}</p><small>${timestamp}</small>`;
+                notifElement.addEventListener('click', () => markNotificationAsRead(notif.id));
+                notificationList.appendChild(notifElement);
             });
-            
-            notificationList.appendChild(notifElement);
         });
-        
-        console.log('Rendered', userNotifs.length, 'notifications in panel');
     } catch (error) {
         console.error('Error displaying notifications:', error);
-        notificationList.innerHTML = '<div class="error">Error loading notifications</div>';
     }
 }
 
-// Function to mark notification as read
 async function markNotificationAsRead(notificationId) {
     try {
-        await updateDoc(doc(db, 'notifications', notificationId), {
-            read: true
-        });
-        await displayNotifications(); // Refresh the display
+        await updateDoc(doc(db, 'notifications', notificationId), { read: true });
     } catch (error) {
         console.error('Error marking notification as read:', error);
     }
 }
 
-// Function to show notification panel
 function showNotificationPanel() {
-    const panel = document.getElementById('notification-panel');
-    const overlay = document.getElementById('notification-overlay');
-    
-    panel.classList.add('show');
-    overlay.classList.add('show');
-    
-    // Refresh notifications when panel opens
-    displayNotifications();
+    document.getElementById('notification-panel').classList.add('show');
+    document.getElementById('notification-overlay').classList.add('show');
 }
 
-// Function to hide notification panel
 function hideNotificationPanel() {
-    const panel = document.getElementById('notification-panel');
-    const overlay = document.getElementById('notification-overlay');
-    
-    panel.classList.remove('show');
-    overlay.classList.remove('show');
+    document.getElementById('notification-panel').classList.remove('show');
+    document.getElementById('notification-overlay').classList.remove('show');
 }
 
-// Add event listener to the form
-document.addEventListener('DOMContentLoaded', async function() {
-    // Load user from localStorage first
-    await loadUserFromStorage();
+
+// Add event listeners when the page content is loaded
+document.addEventListener('DOMContentLoaded', function() {
     
-    // Initialize with sample data if collections are empty
-    await initializeSampleData();
+    document.querySelector('#task-form').addEventListener('submit', handleFormSubmit);
     
-    const form = document.querySelector('form');
-    form.addEventListener('submit', handleFormSubmit);
-    
-    // Add authentication event listeners
+    // Auth buttons
     document.getElementById('signin-btn').addEventListener('click', handleLogIn);
     document.getElementById('signup-btn').addEventListener('click', handleSignUp);
     document.getElementById('signout-btn').addEventListener('click', handleLogOut);
     
-    // Add toggle functionality
-    document.getElementById('signin-toggle').addEventListener('click', function() {
-        showSignInForm();
-    });
-    
-    document.getElementById('signup-toggle').addEventListener('click', function() {
-        showSignUpForm();
-    });
-    
-    // Allow Enter key to sign in from both fields
-    document.getElementById('username').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleLogIn();
-        }
-    });
-    
-    document.getElementById('password').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleLogIn();
-        }
-    });
-    
-    // Allow Enter key to sign up from all fields
-    document.getElementById('new-email').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleSignUp();
-        }
-    });
-    
-    document.getElementById('new-password').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleSignUp();
-        }
-    });
-    
-    document.getElementById('confirm-password').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleSignUp();
-        }
-    });
-    
-    // Add notification bell event listeners
-    document.getElementById('bell-icon').addEventListener('click', function() {
-        showNotificationPanel();
-    });
-    
-    // Close panel when clicking overlay
-    document.getElementById('notification-overlay').addEventListener('click', function() {
-        hideNotificationPanel();
-    });
-    
-    // Close panel button
-    document.getElementById('close-notifications').addEventListener('click', function() {
-        hideNotificationPanel();
-    });
-    
-    // Clear notifications button
-    document.getElementById('clear-notifications').addEventListener('click', async function() {
-        if (currentUser && db) {
-            try {
-                // Get all notifications for current user
-                const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
-                
-                // Delete each notification
-                const deletePromises = [];
-                notificationsSnapshot.forEach(doc => {
-                    const notif = doc.data();
-                    if (notif.user === currentUser) {
-                        deletePromises.push(deleteDoc(doc.ref));
-                    }
-                });
-                
-                await Promise.all(deletePromises);
-                await displayNotifications();
-            } catch (error) {
-                console.error('Error clearing notifications:', error);
-            }
-        }
-    });
-    
-    // Initialize UI
-    updateAuthUI();
+    // Form toggles
+    document.getElementById('signin-toggle').addEventListener('click', showSignInForm);
+    document.getElementById('signup-toggle').addEventListener('click', showSignUpForm);
+
+    // Notifications
+    document.getElementById('bell-icon').addEventListener('click', showNotificationPanel);
+    document.getElementById('notification-overlay').addEventListener('click', hideNotificationPanel);
+    document.getElementById('close-notifications').addEventListener('click', hideNotificationPanel);
+
+    // Initial UI state
+    updateAuthUI(auth.currentUser);
 });

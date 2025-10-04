@@ -791,7 +791,7 @@ button[type="submit"]:active {
     display: block;
     text-align: center;
     color: #6c757d;
-    font-style Comic Sans MS;
+    font-style: Comic Sans MS;
     padding: 2rem;
     background: #f8f9fa;
     border-radius: 8px;
