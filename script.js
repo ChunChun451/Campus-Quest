@@ -6,10 +6,12 @@ import {
     collection, 
     doc, 
     getDocs, 
+    getDoc,
     addDoc, 
     updateDoc, 
     deleteDoc, 
-    query, 
+    query,
+    where,
     orderBy, 
     onSnapshot,
     serverTimestamp 
@@ -127,7 +129,7 @@ async function handleFormSubmit(event) {
         };
         await addDoc(collection(db, 'tasks'), newTask);
         
-        document.getElementById('task-form').reset(); // Reset the form
+        document.querySelector('form').reset(); // Reset the form
         showSuccessMessage('Task Posted!');
         // displayTasks will be called automatically by the listener if needed, but we can call it for instant feedback
         await displayTasks();
@@ -194,14 +196,21 @@ async function handleApplyClick(event) {
 // --- CORRECT, SECURE FIREBASE AUTH FUNCTIONS ---
 
 async function handleSignUp() {
+    console.log('handleSignUp called');
+    
     const email = document.getElementById('new-email').value.trim();
     const password = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     
+    console.log('Form data:', { email, password: password ? '***' : 'empty', confirmPassword: confirmPassword ? '***' : 'empty' });
+    
     if (!email.endsWith('@iitj.ac.in')) {
+        console.log('Email validation failed');
         alert('Error: Only IITJ email accounts are allowed.');
         return;
     }
+    
+    console.log('Email validation passed');
     
     if (password !== confirmPassword) {
         alert('Passwords do not match');
@@ -370,7 +379,7 @@ function hideNotificationPanel() {
 // Add event listeners when the page content is loaded
 document.addEventListener('DOMContentLoaded', function() {
     
-    document.querySelector('#task-form').addEventListener('submit', handleFormSubmit);
+    document.querySelector('form').addEventListener('submit', handleFormSubmit);
     
     // Auth buttons
     document.getElementById('signin-btn').addEventListener('click', handleLogIn);
@@ -380,6 +389,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form toggles
     document.getElementById('signin-toggle').addEventListener('click', showSignInForm);
     document.getElementById('signup-toggle').addEventListener('click', showSignUpForm);
+
+    // Enter key support for auth forms
+    document.getElementById('username').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleLogIn();
+    });
+    
+    document.getElementById('password').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleLogIn();
+    });
+    
+    document.getElementById('new-email').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleSignUp();
+    });
+    
+    document.getElementById('new-password').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleSignUp();
+    });
+    
+    document.getElementById('confirm-password').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleSignUp();
+    });
 
     // Notifications
     document.getElementById('bell-icon').addEventListener('click', showNotificationPanel);
