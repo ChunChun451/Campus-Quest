@@ -1,136 +1,245 @@
-// User authentication system
-let currentUser = null;
-let userNotifications = {};
+// Import Firebase functions
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+import { 
+    getFirestore,
+    collection, 
+    doc, 
+    getDocs, 
+    getDoc, 
+    addDoc, 
+    updateDoc, 
+    deleteDoc, 
+    query, 
+    orderBy, 
+    onSnapshot,
+    serverTimestamp 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { 
+    getAuth, 
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    sendEmailVerification 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-// User database with passwords
-const userDatabase = {
-    'alice': {
-        password: 'password123',
-        notifications: []
-    },
-    'bob': {
-        password: 'bobpass',
-        notifications: []
-    },
-    'charlie': {
-        password: 'charlie123',
-        notifications: []
-    }
+// Your web app's Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyAILEPqpSE8c-Qr_7rSZvZkwRNCL-CwtAI",
+    authDomain: "campus-quest-3e381.firebaseapp.com",
+    projectId: "campus-quest-3e381",
+    storageBucket: "campus-quest-3e381.firebasestorage.app",
+    messagingSenderId: "498855301825",
+    appId: "1:498855301825:web:11df6a5382cc53c4fe7a40",
+    measurementId: "G-8ZK4N4SN4H"
 };
 
-// Global tasks array - all users can see these
-let globalTasks = [
-    {
-        id: 1,
-        title: "Help with Math Assignment",
-        description: "I need someone to help me solve a few calculus problems.",
-        reward: "$15",
-        creator: "alice",
-        applicants: []
-    },
-    {
-        id: 2,
-        title: "Grocery Run",
-        description: "Pick up milk, eggs, and bread from the nearby store.",
-        reward: "Free Coffee",
-        creator: "alice",
-        applicants: []
-    },
-    {
-        id: 3,
-        title: "Coding Help Needed",
-        description: "Looking for help with JavaScript debugging.",
-        reward: "$20",
-        creator: "bob",
-        applicants: []
-    },
-    {
-        id: 4,
-        title: "Study Group",
-        description: "Need study partners for chemistry exam.",
-        reward: "Pizza and drinks",
-        creator: "charlie",
-        applicants: []
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// User authentication system
+let currentUser = null;
+
+// Load user from localStorage on page load
+async function loadUserFromStorage() {
+    const savedUser = localStorage.getItem('campusQuestUser');
+    console.log('Loading user from storage:', savedUser);
+    if (savedUser) {
+        currentUser = savedUser;
+        console.log('User loaded from storage:', currentUser);
+        updateAuthUI();
+        await displayTasks();
+        await displayNotifications();
+    } else {
+        console.log('No saved user found');
     }
-];
+}
 
-// Initialize notifications for all users
-Object.keys(userDatabase).forEach(user => {
-    userNotifications[user] = userDatabase[user].notifications;
-});
+// Save user to localStorage
+function saveUserToStorage(username) {
+    localStorage.setItem('campusQuestUser', username);
+    console.log('User saved to storage:', username);
+}
 
-function displayTasks() {
+// Clear user from localStorage
+function clearUserFromStorage() {
+    localStorage.removeItem('campusQuestUser');
+}
+
+// Initialize sample data
+async function initializeSampleData() {
+    try {
+        // Check if users collection exists and has data
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        if (usersSnapshot.empty) {
+            // Add sample users
+            const sampleUsers = [
+                { username: 'alice', password: 'password123' },
+                { username: 'bob', password: 'bobpass' },
+                { username: 'charlie', password: 'charlie123' }
+            ];
+            
+            for (const user of sampleUsers) {
+                await addDoc(collection(db, 'users'), user);
+            }
+        }
+        
+        // Check if tasks collection exists and has data
+        const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+        if (tasksSnapshot.empty) {
+            // Add sample tasks
+            const sampleTasks = [
+                {
+                    title: "Help with Math Assignment",
+                    description: "I need someone to help me solve a few calculus problems.",
+                    reward: "$15",
+                    creator: "alice",
+                    applicants: [],
+                    createdAt: serverTimestamp()
+                },
+                {
+                    title: "Grocery Run",
+                    description: "Pick up milk, eggs, and bread from the nearby store.",
+                    reward: "Free Coffee",
+                    creator: "alice",
+                    applicants: [],
+                    createdAt: serverTimestamp()
+                },
+                {
+                    title: "Coding Help Needed",
+                    description: "Looking for help with JavaScript debugging.",
+                    reward: "$20",
+                    creator: "bob",
+                    applicants: [],
+                    createdAt: serverTimestamp()
+                },
+                {
+                    title: "Study Group",
+                    description: "Need study partners for chemistry exam.",
+                    reward: "Pizza and drinks",
+                    creator: "charlie",
+                    applicants: [],
+                    createdAt: serverTimestamp()
+                }
+            ];
+            
+            for (const task of sampleTasks) {
+                await addDoc(collection(db, 'tasks'), task);
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing sample data:', error);
+    }
+}
+
+async function displayTasks() {
     const taskListContainer = document.querySelector('.task-list');
     
-    // Clear existing tasks
-    taskListContainer.innerHTML = '';
+    if (!db) {
+        console.error('Database not initialized');
+        return;
+    }
     
-    // Show all global tasks to everyone
-    globalTasks.forEach(task => {
-        // Create card element
-        const taskCard = document.createElement('div');
-        taskCard.className = 'task-card';
+    try {
+        // Clear existing tasks
+        taskListContainer.innerHTML = '';
         
-        // Create HTML structure for the card
-        taskCard.innerHTML = `
-            <h3>${task.title}</h3>
-            <p>${task.description}</p>
-            <div class="task-meta">
-                <span class="reward">${task.reward}</span>
-                <span class="creator">Posted by: ${task.creator}</span>
-            </div>
-            <button class="apply-btn" data-task-id="${task.id}">Apply</button>
-        `;
+        // Get tasks from Firestore
+        const tasksSnapshot = await getDocs(query(collection(db, 'tasks'), orderBy('createdAt', 'desc')));
         
-        // Add card to task list container
-        taskListContainer.appendChild(taskCard);
+        if (tasksSnapshot.empty) {
+            taskListContainer.innerHTML = '<div class="no-tasks">No tasks available yet. Create your first task!</div>';
+            return;
+        }
         
-        // Add event listener to the Apply button
-        const applyBtn = taskCard.querySelector('.apply-btn');
-        applyBtn.addEventListener('click', handleApplyClick);
-    });
+        // Display each task
+        tasksSnapshot.forEach(doc => {
+            const task = { id: doc.id, ...doc.data() };
+            
+            // Create card element
+            const taskCard = document.createElement('div');
+            taskCard.className = 'task-card';
+            
+            // Create HTML structure for the card
+            taskCard.innerHTML = `
+                <h3>${task.title}</h3>
+                <p>${task.description}</p>
+                <div class="task-meta">
+                    <span class="reward">${task.reward}</span>
+                    <span class="creator">Posted by: ${task.creator}</span>
+                </div>
+                <button class="apply-btn" data-task-id="${task.id}">Apply</button>
+            `;
+            
+            // Add card to task list container
+            taskListContainer.appendChild(taskCard);
+            
+            // Add event listener to the Apply button
+            const applyBtn = taskCard.querySelector('.apply-btn');
+            applyBtn.addEventListener('click', handleApplyClick);
+        });
+    } catch (error) {
+        console.error('Error displaying tasks:', error);
+        taskListContainer.innerHTML = '<div class="error">Error loading tasks. Please try again.</div>';
+    }
 }
 
 // Function to handle form submission
-function handleFormSubmit(event) {
+async function handleFormSubmit(event) {
     // Prevent the form from reloading the page
     event.preventDefault();
+    
+    if (!currentUser) {
+        alert('Please sign in to post a task');
+        return;
+    }
+    
+    if (!db) {
+        console.error('Database not initialized');
+        return;
+    }
     
     // Get the values from the input fields
     const taskTitle = document.getElementById('task-title').value;
     const description = document.getElementById('description').value;
     const reward = document.getElementById('reward').value;
     
-    // Create a new task object with these values
-    const newTask = {
-        title: taskTitle,
-        description: description,
-        reward: reward
-    };
+    if (!taskTitle || !description || !reward) {
+        alert('Please fill in all fields');
+        return;
+    }
     
-    // Add this new task object to global tasks
-    if (currentUser) {
-        const newTaskWithId = {
-            id: Date.now(), // Simple ID generation
+    try {
+        // Create a new task object
+        const newTask = {
             title: taskTitle,
             description: description,
             reward: reward,
             creator: currentUser,
-            applicants: []
+            applicants: [],
+            createdAt: serverTimestamp()
         };
-        globalTasks.push(newTaskWithId);
+        
+        // Add task to Firestore
+        await addDoc(collection(db, 'tasks'), newTask);
+        
+        // Clear the input fields
+        document.getElementById('task-title').value = '';
+        document.getElementById('description').value = '';
+        document.getElementById('reward').value = '';
+        
+        // Call the displayTasks function again to update the list on the screen with the new task
+        await displayTasks();
+        
+        // Show success message
+        showSuccessMessage('Task Posted!');
+    } catch (error) {
+        console.error('Error posting task:', error);
+        alert('Error posting task. Please try again.');
     }
-    
-    // Clear the input fields
-    document.getElementById('task-title').value = '';
-    document.getElementById('description').value = '';
-    document.getElementById('reward').value = '';
-    
-    // Call the displayTasks function again to update the list on the screen with the new task
-    displayTasks();
-    
-    // Show success message
-    showSuccessMessage('Task Posted!');
 }
 
 // Function to show temporary success message
@@ -158,33 +267,232 @@ function showSuccessMessage(message) {
 }
 
 // Function to handle Apply button clicks
-function handleApplyClick(event) {
-    const taskId = parseInt(event.target.getAttribute('data-task-id'));
-    const task = globalTasks.find(t => t.id === taskId);
+async function handleApplyClick(event) {
+    const taskId = event.target.getAttribute('data-task-id');
     
-    if (!task) return;
-    
-    // Don't allow users to apply to their own tasks
-    if (task.creator === currentUser) {
-        alert('You cannot apply to your own task!');
+    if (!currentUser) {
+        alert('Please sign in to apply for tasks');
         return;
     }
     
-    // Add applicant to task
-    if (!task.applicants.includes(currentUser)) {
-        task.applicants.push(currentUser);
+    if (!db) {
+        console.error('Database not initialized');
+        return;
+    }
+    
+    try {
+        // Get task from Firestore
+        const taskDoc = await getDoc(doc(db, 'tasks', taskId));
+        
+        if (!taskDoc.exists()) {
+            alert('Task not found');
+            return;
+        }
+        
+        const task = taskDoc.data();
+        
+        // Don't allow users to apply to their own tasks
+        if (task.creator === currentUser) {
+            alert('You cannot apply to your own task!');
+            return;
+        }
+        
+        // Check if user has already applied
+        if (task.applicants && task.applicants.includes(currentUser)) {
+            alert('You have already applied to this task!');
+            return;
+        }
+        
+        // Add applicant to task
+        const updatedApplicants = [...(task.applicants || []), currentUser];
+        await updateDoc(doc(db, 'tasks', taskId), {
+            applicants: updatedApplicants
+        });
         
         // Send notification to task creator
-        sendNotification(task.creator, `${currentUser} has applied to your task: "${task.title}"`);
+        await sendNotification(task.creator, `${currentUser} has applied to your task: "${task.title}"`);
         
         alert('Your application has been sent!');
-    } else {
-        alert('You have already applied to this task!');
+        
+        // Refresh the task display
+        await displayTasks();
+    } catch (error) {
+        console.error('Error applying to task:', error);
+        alert('Error applying to task. Please try again.');
+    }
+}
+
+// Firebase Authentication function for sign up with email verification
+async function handleSignUp() {
+    const email = document.getElementById('new-email').value.trim();
+    const password = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    const errorDiv = document.getElementById('signup-error');
+    
+    // Clear previous errors
+    errorDiv.style.display = 'none';
+    errorDiv.textContent = '';
+    
+    // Validate email domain
+    if (!email.endsWith('@iitj.ac.in')) {
+        alert('Error: Only IITJ email accounts are allowed.');
+        return;
+    }
+    
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+        showSignUpError('Passwords do not match');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showSignUpError('Password must be at least 6 characters long');
+        return;
+    }
+    
+    try {
+        // Create user with Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Send email verification
+        await sendEmailVerification(user);
+        
+        // Show success message
+        alert('Account created successfully! Please check your IITJ email to verify your account.');
+        
+        // Clear form fields
+        document.getElementById('new-email').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-password').value = '';
+        
+    } catch (error) {
+        console.error('Firebase Auth error:', error);
+        
+        // Handle specific Firebase errors
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                alert('Email is already in use. Please use a different email or try signing in.');
+                break;
+            case 'auth/invalid-email':
+                showSignUpError('Invalid email address');
+                break;
+            case 'auth/weak-password':
+                showSignUpError('Password is too weak. Please choose a stronger password.');
+                break;
+            case 'auth/operation-not-allowed':
+                alert('Account creation is currently disabled. Please contact support.');
+                break;
+            case 'auth/network-request-failed':
+                alert('Network error. Please check your internet connection and try again.');
+                break;
+            default:
+                alert('Error creating account. Please try again.');
+                break;
+        }
+    }
+}
+
+// Firebase Authentication function for login with email verification check
+async function handleLogIn() {
+    const email = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('signin-error');
+    
+    // Clear previous errors
+    errorDiv.style.display = 'none';
+    errorDiv.textContent = '';
+    
+    if (!email) {
+        showSignInError('Please enter your email');
+        return;
+    }
+    
+    if (!password) {
+        showSignInError('Please enter your password');
+        return;
+    }
+    
+    try {
+        // Sign in with Firebase Authentication
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Check if email is verified
+        if (!user.emailVerified) {
+            // Sign user out immediately
+            await signOut(auth);
+            alert('You must verify your email before logging in. Please check your inbox.');
+            return;
+        }
+        
+        // Email is verified - proceed with login
+        // Update currentUser and UI
+        currentUser = email; // Using email as identifier
+        saveUserToStorage(email);
+        
+        // Update UI
+        updateAuthUI();
+        await displayTasks();
+        await displayNotifications();
+        
+        // Clear form fields
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        
+    } catch (error) {
+        console.error('Firebase Auth error:', error);
+        
+        // Handle specific Firebase errors
+        switch (error.code) {
+            case 'auth/user-not-found':
+            case 'auth/invalid-credential':
+                showSignInError('Invalid email or password');
+                break;
+            case 'auth/wrong-password':
+                showSignInError('Wrong password');
+                break;
+            case 'auth/invalid-email':
+                showSignInError('Invalid email address');
+                break;
+            case 'auth/user-disabled':
+                alert('This account has been disabled. Please contact support.');
+                break;
+            case 'auth/too-many-requests':
+                alert('Too many failed login attempts. Please try again later.');
+                break;
+            case 'auth/network-request-failed':
+                alert('Network error. Please check your internet connection and try again.');
+                break;
+            default:
+                alert('Error signing in. Please try again.');
+                break;
+        }
+    }
+}
+
+// Firebase Authentication function for logout
+async function handleLogOut() {
+    try {
+        // Sign out from Firebase
+        await signOut(auth);
+        
+        // Clear local user data
+        currentUser = null;
+        clearUserFromStorage();
+        
+        // Update UI to show login page
+        updateAuthUI();
+        await displayTasks();
+        
+    } catch (error) {
+        console.error('Error signing out:', error);
+        alert('Error signing out. Please try again.');
     }
 }
 
 // Authentication functions
-function signIn() {
+async function signIn() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const errorDiv = document.getElementById('signin-error');
@@ -203,34 +511,53 @@ function signIn() {
         return;
     }
     
-    // Check if user exists
-    if (!userDatabase[username]) {
-        showSignInError('User not found. Please check your username.');
+    if (!db) {
+        showSignInError('Database not initialized');
         return;
     }
     
-    // Check password
-    if (userDatabase[username].password !== password) {
-        showSignInError('Incorrect password. Please try again.');
-        return;
+    try {
+        // Query users collection for the username
+        const usersSnapshot = await getDocs(query(collection(db, 'users')));
+        let userFound = false;
+        let passwordCorrect = false;
+        
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            if (userData.username === username) {
+                userFound = true;
+                if (userData.password === password) {
+                    passwordCorrect = true;
+                }
+            }
+        });
+        
+        if (!userFound) {
+            showSignInError('User not found. Please check your username.');
+            return;
+        }
+        
+        if (!passwordCorrect) {
+            showSignInError('Incorrect password. Please try again.');
+            return;
+        }
+        
+        // Successful login
+        currentUser = username;
+        saveUserToStorage(username);
+        
+        // Update UI
+        updateAuthUI();
+        await displayTasks();
+        await displayNotifications();
+        
+        // Clear form fields
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+    } catch (error) {
+        console.error('Error signing in:', error);
+        showSignInError('Error signing in. Please try again.');
     }
-    
-    // Successful login
-    currentUser = username;
-    
-    // Initialize user's notifications if it doesn't exist
-    if (!userNotifications[currentUser]) {
-        userNotifications[currentUser] = [];
-    }
-    
-    // Update UI
-    updateAuthUI();
-    displayTasks();
-    displayNotifications();
-    
-    // Clear form fields
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
 }
 
 function showSignInError(message) {
@@ -245,7 +572,7 @@ function showSignUpError(message) {
     errorDiv.style.display = 'block';
 }
 
-function signUp() {
+async function signUp() {
     const username = document.getElementById('new-username').value.trim();
     const password = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
@@ -280,55 +607,75 @@ function signUp() {
         return;
     }
     
-    // Check if user already exists
-    if (userDatabase[username]) {
-        showSignUpError('Username already exists. Please choose a different one.');
+    if (!db) {
+        showSignUpError('Database not initialized');
         return;
     }
     
-    // Create new user
-    userDatabase[username] = {
-        password: password,
-        notifications: []
-    };
-    
-    // Initialize notifications for new user
-    userNotifications[username] = [];
-    
-    // Successful sign up - auto sign in
-    currentUser = username;
-    
-    // Update UI
-    updateAuthUI();
-    displayTasks();
-    displayNotifications();
-    
-    // Clear form fields
-    document.getElementById('new-username').value = '';
-    document.getElementById('new-password').value = '';
-    document.getElementById('confirm-password').value = '';
+    try {
+        // Check if user already exists
+        const usersSnapshot = await getDocs(query(collection(db, 'users')));
+        let userExists = false;
+        
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            if (userData.username === username) {
+                userExists = true;
+            }
+        });
+        
+        if (userExists) {
+            showSignUpError('Username already exists. Please choose a different one.');
+            return;
+        }
+        
+        // Create new user
+        await addDoc(collection(db, 'users'), {
+            username: username,
+            password: password,
+            createdAt: serverTimestamp()
+        });
+        
+        // Successful sign up - auto sign in
+        currentUser = username;
+        saveUserToStorage(username);
+        
+        // Update UI
+        updateAuthUI();
+        await displayTasks();
+        await displayNotifications();
+        
+        // Clear form fields
+        document.getElementById('new-username').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-password').value = '';
+    } catch (error) {
+        console.error('Error signing up:', error);
+        showSignUpError('Error creating account. Please try again.');
+    }
 }
 
 function showSignInForm() {
-    document.getElementById('signin-form').style.display = 'block';
-    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('signin-form').classList.remove('hidden');
+    document.getElementById('signup-form').classList.add('hidden');
     document.getElementById('signin-toggle').classList.add('active');
     document.getElementById('signup-toggle').classList.remove('active');
     document.getElementById('modal-subtitle').textContent = 'Please sign in to access the task board';
 }
 
 function showSignUpForm() {
-    document.getElementById('signin-form').style.display = 'none';
-    document.getElementById('signup-form').style.display = 'block';
+    document.getElementById('signin-form').classList.add('hidden');
+    document.getElementById('signup-form').classList.remove('hidden');
     document.getElementById('signin-toggle').classList.remove('active');
     document.getElementById('signup-toggle').classList.add('active');
     document.getElementById('modal-subtitle').textContent = 'Create a new account to get started';
 }
 
-function signOut() {
+async function signOut() {
     currentUser = null;
+    clearUserFromStorage();
     updateAuthUI();
-    displayTasks();
+    await displayTasks();
 }
 
 function updateAuthUI() {
@@ -355,63 +702,154 @@ function updateAuthUI() {
 }
 
 // Notification system
-function sendNotification(user, message) {
-    if (!userNotifications[user]) {
-        userNotifications[user] = [];
+async function sendNotification(user, message) {
+    if (!db) {
+        console.error('Database not initialized');
+        return;
     }
-    userNotifications[user].push({
-        id: Date.now(),
-        message: message,
-        timestamp: new Date(),
-        read: false
-    });
+    
+    try {
+        await addDoc(collection(db, 'notifications'), {
+            user: user,
+            message: message,
+            timestamp: serverTimestamp(),
+            read: false
+        });
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
 }
 
-function displayNotifications() {
+async function displayNotifications() {
     const notificationList = document.getElementById('notification-list');
     const notificationCount = document.getElementById('notification-count');
     const notificationBell = document.getElementById('notification-bell');
     
     if (!notificationList || !notificationCount || !notificationBell) return;
     
-    const userNotifs = userNotifications[currentUser] || [];
-    const unreadCount = userNotifs.filter(notif => !notif.read).length;
-    
-    // Update notification count
-    notificationCount.textContent = unreadCount;
-    
-    // Always show bell icon when user is signed in
-    notificationBell.style.display = 'block';
-    
-    // Clear and populate notification list
-    notificationList.innerHTML = '';
-    
-    if (userNotifs.length === 0) {
-        notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+    if (!currentUser || !db) {
+        notificationBell.style.display = 'none';
         return;
     }
     
-    // Show notifications in reverse order (newest first)
-    userNotifs.slice().reverse().forEach(notif => {
-        const notifElement = document.createElement('div');
-        notifElement.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
-        notifElement.innerHTML = `
-            <p>${notif.message}</p>
-            <small>${new Date(notif.timestamp).toLocaleString()}</small>
-        `;
-        notificationList.appendChild(notifElement);
-    });
+    try {
+        // Get notifications for current user
+        const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
+        
+        const userNotifs = [];
+        notificationsSnapshot.forEach(doc => {
+            const notif = { id: doc.id, ...doc.data() };
+            if (notif.user === currentUser) {
+                userNotifs.push(notif);
+            }
+        });
+        
+        // Sort by timestamp (newest first)
+        userNotifs.sort((a, b) => {
+            if (!a.timestamp || !b.timestamp) return 0;
+            const aTime = a.timestamp.seconds ? a.timestamp.seconds : 0;
+            const bTime = b.timestamp.seconds ? b.timestamp.seconds : 0;
+            return bTime - aTime;
+        });
+        
+        const unreadCount = userNotifs.filter(notif => !notif.read).length;
+        
+        console.log('Notifications found:', userNotifs.length, 'for user:', currentUser);
+        console.log('Unread count:', unreadCount);
+        
+        // Update notification count
+        notificationCount.textContent = unreadCount;
+        
+        // Always show bell icon when user is signed in
+        notificationBell.style.display = 'block';
+        
+        // Clear and populate notification list
+        notificationList.innerHTML = '';
+        
+        if (userNotifs.length === 0) {
+            notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+            return;
+        }
+        
+        // Show notifications (newest first)
+        userNotifs.forEach(notif => {
+            const notifElement = document.createElement('div');
+            notifElement.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
+            
+            const timestamp = notif.timestamp ? 
+                new Date(notif.timestamp.seconds * 1000).toLocaleString() : 
+                'Just now';
+            
+            notifElement.innerHTML = `
+                <p>${notif.message}</p>
+                <small>${timestamp}</small>
+            `;
+            
+            // Add click handler to mark as read
+            notifElement.addEventListener('click', async () => {
+                if (!notif.read) {
+                    await markNotificationAsRead(notif.id);
+                }
+            });
+            
+            notificationList.appendChild(notifElement);
+        });
+        
+        console.log('Rendered', userNotifs.length, 'notifications in panel');
+    } catch (error) {
+        console.error('Error displaying notifications:', error);
+        notificationList.innerHTML = '<div class="error">Error loading notifications</div>';
+    }
+}
+
+// Function to mark notification as read
+async function markNotificationAsRead(notificationId) {
+    try {
+        await updateDoc(doc(db, 'notifications', notificationId), {
+            read: true
+        });
+        await displayNotifications(); // Refresh the display
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+    }
+}
+
+// Function to show notification panel
+function showNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    const overlay = document.getElementById('notification-overlay');
+    
+    panel.classList.add('show');
+    overlay.classList.add('show');
+    
+    // Refresh notifications when panel opens
+    displayNotifications();
+}
+
+// Function to hide notification panel
+function hideNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    const overlay = document.getElementById('notification-overlay');
+    
+    panel.classList.remove('show');
+    overlay.classList.remove('show');
 }
 
 // Add event listener to the form
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Load user from localStorage first
+    await loadUserFromStorage();
+    
+    // Initialize with sample data if collections are empty
+    await initializeSampleData();
+    
     const form = document.querySelector('form');
     form.addEventListener('submit', handleFormSubmit);
     
     // Add authentication event listeners
-    document.getElementById('signin-btn').addEventListener('click', signIn);
-    document.getElementById('signup-btn').addEventListener('click', signUp);
-    document.getElementById('signout-btn').addEventListener('click', signOut);
+    document.getElementById('signin-btn').addEventListener('click', handleLogIn);
+    document.getElementById('signup-btn').addEventListener('click', handleSignUp);
+    document.getElementById('signout-btn').addEventListener('click', handleLogOut);
     
     // Add toggle functionality
     document.getElementById('signin-toggle').addEventListener('click', function() {
@@ -425,55 +863,71 @@ document.addEventListener('DOMContentLoaded', function() {
     // Allow Enter key to sign in from both fields
     document.getElementById('username').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            signIn();
+            handleLogIn();
         }
     });
     
     document.getElementById('password').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            signIn();
+            handleLogIn();
         }
     });
     
     // Allow Enter key to sign up from all fields
-    document.getElementById('new-username').addEventListener('keypress', function(e) {
+    document.getElementById('new-email').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            signUp();
+            handleSignUp();
         }
     });
     
     document.getElementById('new-password').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            signUp();
+            handleSignUp();
         }
     });
     
     document.getElementById('confirm-password').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            signUp();
+            handleSignUp();
         }
     });
     
     // Add notification bell event listeners
     document.getElementById('bell-icon').addEventListener('click', function() {
-        const dropdown = document.getElementById('notification-dropdown');
-        dropdown.classList.toggle('show');
+        showNotificationPanel();
     });
     
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        const bell = document.getElementById('bell-icon');
-        const dropdown = document.getElementById('notification-dropdown');
-        if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.remove('show');
-        }
+    // Close panel when clicking overlay
+    document.getElementById('notification-overlay').addEventListener('click', function() {
+        hideNotificationPanel();
+    });
+    
+    // Close panel button
+    document.getElementById('close-notifications').addEventListener('click', function() {
+        hideNotificationPanel();
     });
     
     // Clear notifications button
-    document.getElementById('clear-notifications').addEventListener('click', function() {
-        if (currentUser && userNotifications[currentUser]) {
-            userNotifications[currentUser] = [];
-            displayNotifications();
+    document.getElementById('clear-notifications').addEventListener('click', async function() {
+        if (currentUser && db) {
+            try {
+                // Get all notifications for current user
+                const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
+                
+                // Delete each notification
+                const deletePromises = [];
+                notificationsSnapshot.forEach(doc => {
+                    const notif = doc.data();
+                    if (notif.user === currentUser) {
+                        deletePromises.push(deleteDoc(doc.ref));
+                    }
+                });
+                
+                await Promise.all(deletePromises);
+                await displayNotifications();
+            } catch (error) {
+                console.error('Error clearing notifications:', error);
+            }
         }
     });
     
