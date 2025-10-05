@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Quest</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Campus Quest</h1>
+        <div class="header-controls">
+            <div class="notification-bell" id="notification-bell" style="display: none;">
+                <div class="bell-icon" id="bell-icon">
+                    🔔
+                    <span class="notification-count" id="notification-count">0</span>
+                </div>
+            </div>
+            
+            <div class="notification-panel" id="notification-panel">
+                <div class="panel-header">
+                    <h3>Notifications</h3>
+                    <div class="panel-controls">
+                        <button id="clear-notifications" class="clear-btn" onclick="clearAllNotifications()">Clear All</button>
+                        <button id="close-notifications" class="close-btn">×</button>
+                    </div>
+                </div>
+                <div class="notification-list" id="notification-list">
+                    </div>
+            </div>
+            <div class="user-info" id="user-info" style="display: none;">
+                <span id="welcome-message">Welcome, <span id="current-user"></span>!</span>
+                <button id="signout-btn">Sign Out</button>
+            </div>
+        </div>
+    </header>
+    
+    <div id="signin-modal" class="signin-modal">
+        <div class="signin-content">
+            <h2>Welcome to Campus Tasks</h2>
+            <p id="modal-subtitle">Please sign in to access the task board</p>
+            
+            <div class="auth-toggle">
+                <button id="signin-toggle" class="toggle-btn active">Sign In</button>
+                <button id="signup-toggle" class="toggle-btn">Sign Up</button>
+            </div>
+            
+            <form id="signin-form" class="auth-form">
+                <input type="email" id="username" placeholder="Enter your email" required>
+                <input type="password" id="password" placeholder="Enter your password" required>
+                <button type="button" id="signin-btn">Sign In</button>
+                <div id="signin-error" class="auth-error" style="display: none;"></div>
+            </form>
+            
+            <form id="signup-form" class="auth-form hidden">
+                <input type="email" id="new-email" placeholder="Enter your IITJ email" required>
+                <input type="password" id="new-password" placeholder="Create a password" required>
+                <input type="password" id="confirm-password" placeholder="Confirm password" required>
+                <button type="button" id="signup-btn">Create Account</button>
+                <div id="signup-error" class="auth-error" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+    
+    <main id="main-content" style="display: none;">
+        <section class="task-form-container">
+            <form id="task-form">
+                <h2>Post a New Task</h2>
+                <div class="form-group">
+                    <label for="task-title">Task Title:</label>
+                    <input type="text" id="task-title" name="task-title" maxlength="100" required>
+                    <div class="char-count" id="title-count">0/100 characters</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" rows="4" maxlength="500" required></textarea>
+                    <div class="char-count" id="desc-count">0/500 characters</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reward">Reward (₹):</label>
+                    <input type="number" id="reward" name="reward" min="1" max="10000" step="1" placeholder="Enter amount in ₹" required>
+                    <div class="reward-help">Enter cash reward amount in Indian Rupees (₹1 - ₹10,000)</div>
+                </div>
+                
+                <button type="submit">Post Task</button>
+            </form>
+        </section>
+        
+        <section class="task-list-container">
+            <h2>Available Tasks</h2>
+            <div class="task-list">
+                </div>
+        </section>
+    </main>
+    
+    <div class="notification-overlay" id="notification-overlay"></div>
+    
+    <script type="module" src="script.js"></script>
+</body>
+</html>
