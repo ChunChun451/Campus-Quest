@@ -17,12 +17,24 @@
                 </div>
             </div>
             
+            <div class="profile-container" id="profile-container" style="display: none;">
+                <div class="profile-icon" id="profile-icon">👤</div>
+                <div class="profile-dropdown" id="profile-dropdown">
+                    <div class="profile-info">
+                        <div class="profile-username" id="profile-username">Username</div>
+                        <div class="profile-email" id="profile-email">user@example.com</div>
+                    </div>
+                    <button class="profile-rating" id="profile-rating">My Rating</button>
+                    <button class="profile-signout" id="profile-signout">Sign Out</button>
+                </div>
+            </div>
+            
             <div class="notification-panel" id="notification-panel">
                 <div class="panel-header">
                     <h3>Notifications</h3>
                     <div class="panel-controls">
-                        <button id="clear-notifications" class="clear-btn" onclick="clearAllNotifications()">Clear All</button>
-                        <button id="close-notifications" class="close-btn">×</button>
+                        <button id="clear-notifications" class="clear-btn" type="button" onclick="clearAllAndClose()">Clear All</button>
+                        <button id="close-notifications" class="close-btn" type="button" onclick="closeNotificationPanel()">×</button>
                     </div>
                 </div>
                 <div class="notification-list" id="notification-list">
@@ -47,15 +59,25 @@
             
             <form id="signin-form" class="auth-form">
                 <input type="email" id="username" placeholder="Enter your email" required>
-                <input type="password" id="password" placeholder="Enter your password" required>
+                <div class="password-container">
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
+                </div>
                 <button type="button" id="signin-btn">Sign In</button>
                 <div id="signin-error" class="auth-error" style="display: none;"></div>
             </form>
             
             <form id="signup-form" class="auth-form hidden">
                 <input type="email" id="new-email" placeholder="Enter your IITJ email" required>
-                <input type="password" id="new-password" placeholder="Create a password" required>
-                <input type="password" id="confirm-password" placeholder="Confirm password" required>
+                <input type="text" id="username" placeholder="Choose a username" required>
+                <div class="password-container">
+                    <input type="password" id="new-password" placeholder="Create a password" required>
+                    <span class="toggle-password" onclick="togglePassword('new-password', this)">👁️</span>
+                </div>
+                <div class="password-container">
+                    <input type="password" id="confirm-password" placeholder="Confirm password" required>
+                    <span class="toggle-password" onclick="togglePassword('confirm-password', this)">👁️</span>
+                </div>
                 <button type="button" id="signup-btn">Create Account</button>
                 <div id="signup-error" class="auth-error" style="display: none;"></div>
             </form>
@@ -96,6 +118,46 @@
     </main>
     
     <div class="notification-overlay" id="notification-overlay"></div>
+    
+    <!-- Rating Modal -->
+    <div class="rating-modal" id="rating-modal">
+        <div class="rating-modal-content">
+            <div class="rating-modal-header">
+                <h2>My Ratings</h2>
+                <button class="rating-modal-close" id="rating-modal-close">&times;</button>
+            </div>
+            <div class="rating-sections">
+                <div class="rating-section aurora-section">
+                    <h3>As Aurora</h3>
+                    <p>Each time you post tasks and someone rates you based on your loyalty towards promised incentive, your rating as aurora increases.</p>
+                    <div class="star-rating-display" id="aurora-rating">
+                        <div class="stars">
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                        </div>
+                        <div class="rating-text" id="aurora-rating-text">No ratings yet</div>
+                    </div>
+                </div>
+                <div class="rating-section voyager-section">
+                    <h3>As Voyager</h3>
+                    <p>Each time you complete a task and someone rates you based on your loyalty towards time and effort, your rating as voyager increases.</p>
+                    <div class="star-rating-display" id="voyager-rating">
+                        <div class="stars">
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                        </div>
+                        <div class="rating-text" id="voyager-rating-text">No ratings yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <script type="module" src="script.js"></script>
 </body>

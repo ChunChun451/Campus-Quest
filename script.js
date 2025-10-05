@@ -104,15 +104,31 @@ async function displayTasks() {
     
     try {
         const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
-        tasksUnsubscribe = onSnapshot(q, (snapshot) => {
+        tasksUnsubscribe = onSnapshot(q, async (snapshot) => {
             taskListContainer.innerHTML = '';
             if (snapshot.empty) {
                 taskListContainer.innerHTML = '<div class="no-tasks">No tasks available yet. Be the first to post one!</div>';
                 return;
             }
             
-            snapshot.forEach(doc => {
+            // Process tasks and fetch usernames
+            const tasks = [];
+            for (const doc of snapshot.docs) {
                 const task = { id: doc.id, ...doc.data() };
+                
+                // Skip closed tasks (assigned tasks)
+                if (task.status === 'closed') {
+                    continue;
+                }
+                
+                // Get username for creator
+                const username = await getUsernameByEmail(task.creator);
+                task.creatorDisplay = username || task.creator.split('@')[0];
+                tasks.push(task);
+            }
+            
+            // Display tasks
+            tasks.forEach(task => {
                 const taskCard = document.createElement('div');
                 taskCard.className = 'task-card';
                 
@@ -126,19 +142,7 @@ async function displayTasks() {
                 
                 let buttonHtml = '';
                 if (isCreator) {
-                    if (task.status === 'assigned') {
-                        buttonHtml = `<button class="apply-btn" disabled style="background: #17a2b8;">Assigned to ${task.assignedTo}</button>`;
-                    } else {
                         buttonHtml = '<button class="apply-btn" disabled style="background: #6c757d;">Your Task</button>';
-                    }
-                } else if (task.status === 'assigned') {
-                    if (task.assignedTo === currentUser.email) {
-                        buttonHtml = '<button class="apply-btn" disabled style="background: #17a2b8;">Assigned to You</button>';
-                    } else {
-                        buttonHtml = '<button class="apply-btn" disabled style="background: #dc3545;">Already Assigned</button>';
-                    }
-                } else if (task.status === 'closed') {
-                    buttonHtml = '<button class="apply-btn" disabled style="background: #dc3545;">Closed</button>';
                 } else if (hasApplied) {
                     buttonHtml = '<button class="apply-btn" disabled style="background: #28a745;">Applied</button>';
                 } else {
@@ -155,7 +159,7 @@ async function displayTasks() {
                     <p>${escapeHtml(task.description)}</p>
                     <div class="task-meta">
                         <span class="reward">${formattedReward}</span>
-                        <span class="creator">Posted by: ${escapeHtml(task.creator)}</span>
+                        <span class="creator">Posted by: ${escapeHtml(task.creatorDisplay)}</span>
                         <span class="date">${createdDate}</span>
                         <span class="applicants">${applicantCount} applicant${applicantCount !== 1 ? 's' : ''}</span>
                     </div>
@@ -274,6 +278,25 @@ function showErrorMessage(message) {
 }
 
 document.addEventListener('click', async function(event) {
+    // Individual notification close button
+    if (event.target && event.target.classList.contains('notif-close')) {
+        const notificationId = event.target.dataset.notificationId;
+        if (notificationId) {
+            try {
+                await deleteDoc(doc(db, 'notifications', notificationId));
+                console.log('Individual notification deleted:', notificationId);
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+        return;
+    }
+    
+    // Clear all notifications via delegation
+    if (event.target && event.target.id === 'clear-notifications') {
+        try { await clearAllNotifications(); } catch (e) { console.error('Clear all failed:', e); }
+        return;
+    }
     if (event.target.classList.contains('assign-btn')) {
         const taskId = event.target.dataset.taskId;
         const applicantEmail = event.target.dataset.applicant;
@@ -356,12 +379,17 @@ document.addEventListener('click', async function(event) {
 // THIS FUNCTION HAS BEEN UPDATED
 async function handleSignUp() {
     const email = document.getElementById('new-email').value.trim();
+    const username = document.getElementById('username').value.trim();
     const password = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     const signupButton = document.getElementById('signup-btn');
     
     if (!email.endsWith('@iitj.ac.in')) {
         showErrorMessage('Only IITJ email accounts are allowed');
+        return;
+    }
+    if (!username || username.length < 3) {
+        showErrorMessage('Username must be at least 3 characters long');
         return;
     }
     if (password !== confirmPassword) {
@@ -384,6 +412,16 @@ async function handleSignUp() {
     
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
+        // Save user data to Firestore
+        await addDoc(collection(db, 'users'), {
+            email: email,
+            username: username,
+            auroraRatings: [],
+            voyagerRatings: [],
+            createdAt: serverTimestamp()
+        });
+        
         await sendEmailVerification(userCredential.user);
         showSuccessMessage('Account created! Please check your IITJ email to verify your account before logging in.');
         document.getElementById('signup-form').reset();
@@ -480,6 +518,7 @@ function updateAuthUI(user) {
     const signinModal = document.getElementById('signin-modal');
     const mainContent = document.getElementById('main-content');
     const userInfo = document.getElementById('user-info');
+    const profileContainer = document.getElementById('profile-container');
     
     if (user) {
         signinModal.style.display = 'none';
@@ -487,11 +526,54 @@ function updateAuthUI(user) {
         userInfo.style.display = 'flex';
         document.getElementById('current-user').textContent = user.email;
         document.getElementById('notification-bell').style.display = 'block';
+        profileContainer.style.display = 'block';
+        
+        // Update profile dropdown
+        updateProfileDropdown(user);
     } else {
         signinModal.style.display = 'flex';
         mainContent.style.display = 'none';
         userInfo.style.display = 'none';
         document.getElementById('notification-bell').style.display = 'none';
+        profileContainer.style.display = 'none';
+    }
+}
+
+async function updateProfileDropdown(user) {
+    try {
+        // Get user data from Firestore
+        const q = query(collection(db, 'users'), where('email', '==', user.email));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            const userData = snapshot.docs[0].data();
+            document.getElementById('profile-username').textContent = userData.username;
+        } else {
+            // Fallback to email if username not found
+            document.getElementById('profile-username').textContent = user.email.split('@')[0];
+        }
+        
+        document.getElementById('profile-email').textContent = user.email;
+    } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Fallback to email
+        document.getElementById('profile-username').textContent = user.email.split('@')[0];
+        document.getElementById('profile-email').textContent = user.email;
+    }
+}
+
+async function getUsernameByEmail(email) {
+    try {
+        const q = query(collection(db, 'users'), where('email', '==', email));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            return snapshot.docs[0].data().username;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching username:', error);
+        return null;
     }
 }
 
@@ -515,6 +597,7 @@ async function displayNotifications() {
     const currentUser = auth.currentUser;
     const notificationList = document.getElementById('notification-list');
     const notificationCount = document.getElementById('notification-count');
+    const clearBtn = document.getElementById('clear-notifications');
     
     if (!currentUser || !notificationList) return;
     
@@ -528,7 +611,16 @@ async function displayNotifications() {
     notificationsUnsubscribe = onSnapshot(q, (snapshot) => {
         notificationList.innerHTML = '';
         const unreadCount = snapshot.docs.filter(doc => !doc.data().read).length;
+        // Update badge visibility
+        if (unreadCount > 0) {
         notificationCount.textContent = unreadCount;
+            notificationCount.style.display = 'flex';
+        } else {
+            notificationCount.textContent = '';
+            notificationCount.style.display = 'none';
+        }
+        // Enable/disable Clear All
+        if (clearBtn) clearBtn.disabled = snapshot.empty;
         
         if (snapshot.empty) {
             notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
@@ -559,13 +651,14 @@ async function displayNotifications() {
             }
             
             notifElement.innerHTML = `
+                <span class="notif-close" data-notification-id="${notif.id}">&times;</span>
                 <p>${notif.message}</p>
                 <small>${timestamp}</small>
                 ${actionButton}
             `;
             
             notifElement.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('assign-btn')) {
+                if (!e.target.classList.contains('assign-btn') && !e.target.classList.contains('notif-close')) {
                     markNotificationAsRead(notif.id);
                 }
             });
@@ -599,6 +692,176 @@ async function clearAllNotifications() {
         batch.delete(doc.ref);
     });
     await batch.commit();
+    // Optimistically update UI
+    const notificationList = document.getElementById('notification-list');
+    const notificationCount = document.getElementById('notification-count');
+    const clearBtn = document.getElementById('clear-notifications');
+    if (notificationList) notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+    if (notificationCount) { notificationCount.textContent = ''; notificationCount.style.display = 'none'; }
+    if (clearBtn) clearBtn.disabled = true;
+}
+
+async function clearAllTasks() {
+    try {
+        console.log('Starting to clear all tasks...');
+        
+        // Get all tasks
+        const q = query(collection(db, 'tasks'));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            console.log('No tasks to clear');
+            showSuccessMessage('No tasks found to clear');
+            return;
+        }
+        
+        console.log(`Found ${snapshot.docs.length} tasks to delete`);
+        
+        // Delete in batches (Firestore batch limit is 500)
+        const batch = writeBatch(db);
+        let batchCount = 0;
+        
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+            batchCount++;
+            
+            // Commit batch when it reaches 500 operations
+            if (batchCount >= 500) {
+                batch.commit();
+                batchCount = 0;
+            }
+        });
+        
+        // Commit remaining operations
+        if (batchCount > 0) {
+            await batch.commit();
+        }
+        
+        console.log('All tasks cleared successfully');
+        showSuccessMessage(`Successfully cleared ${snapshot.docs.length} tasks`);
+        
+    } catch (error) {
+        console.error('Error clearing tasks:', error);
+        showErrorMessage('Failed to clear tasks. Please try again.');
+    }
+}
+
+function togglePassword(inputId, icon) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        icon.textContent = '👁️';
+    }
+}
+
+function renderStarRating(rating, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const stars = container.querySelectorAll('.star');
+    const textElement = container.querySelector('.rating-text');
+    
+    if (rating === 0) {
+        stars.forEach(star => {
+            star.textContent = '☆';
+            star.classList.remove('filled');
+            star.classList.add('empty');
+        });
+        textElement.textContent = 'No ratings yet';
+    } else {
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = rating % 1 >= 0.5;
+        
+        stars.forEach((star, index) => {
+            if (index < fullStars) {
+                star.textContent = '⭐';
+                star.classList.add('filled');
+                star.classList.remove('empty');
+            } else if (index === fullStars && hasHalfStar) {
+                star.textContent = '⭐';
+                star.classList.add('filled');
+                star.classList.remove('empty');
+            } else {
+                star.textContent = '☆';
+                star.classList.remove('filled');
+                star.classList.add('empty');
+            }
+        });
+        
+        textElement.textContent = `${rating.toFixed(1)}/5.0`;
+    }
+}
+
+async function loadUserRatings() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    
+    try {
+        const q = query(collection(db, 'users'), where('email', '==', currentUser.email));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            const userData = snapshot.docs[0].data();
+            const auroraRatings = userData.auroraRatings || [];
+            const voyagerRatings = userData.voyagerRatings || [];
+            
+            const auroraAverage = auroraRatings.length > 0 
+                ? auroraRatings.reduce((sum, rating) => sum + rating, 0) / auroraRatings.length 
+                : 0;
+            const voyagerAverage = voyagerRatings.length > 0 
+                ? voyagerRatings.reduce((sum, rating) => sum + rating, 0) / voyagerRatings.length 
+                : 0;
+            
+            renderStarRating(auroraAverage, 'aurora-rating');
+            renderStarRating(voyagerAverage, 'voyager-rating');
+        }
+    } catch (error) {
+        console.error('Error loading user ratings:', error);
+    }
+}
+
+function showRatingModal() {
+    const modal = document.getElementById('rating-modal');
+    modal.classList.add('show');
+    loadUserRatings();
+}
+
+function hideRatingModal() {
+    const modal = document.getElementById('rating-modal');
+    modal.classList.remove('show');
+}
+
+async function addRatingToUser(userEmail, ratingType, rating) {
+    try {
+        const q = query(collection(db, 'users'), where('email', '==', userEmail));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            const userDoc = snapshot.docs[0];
+            const userData = userDoc.data();
+            
+            const ratingsArray = ratingType === 'aurora' ? 'auroraRatings' : 'voyagerRatings';
+            const currentRatings = userData[ratingsArray] || [];
+            
+            await updateDoc(userDoc.ref, {
+                [ratingsArray]: [...currentRatings, rating]
+            });
+            
+            console.log(`Added ${ratingType} rating ${rating} to user ${userEmail}`);
+        }
+    } catch (error) {
+        console.error('Error adding rating to user:', error);
+    }
+}
+
+async function testRating(userEmail, ratingType, rating) {
+    await addRatingToUser(userEmail, ratingType, rating);
+    console.log(`Test: Added ${ratingType} rating ${rating} to ${userEmail}`);
 }
 
 async function assignTask(taskId, applicantEmail, notificationId) {
@@ -627,7 +890,7 @@ async function assignTask(taskId, applicantEmail, notificationId) {
         }
         
         // Check if task is already assigned
-        if (task.status === 'assigned' && task.assignedTo) {
+        if (task.status === 'closed' && task.assignedTo) {
             showErrorMessage('This task has already been assigned');
             return;
         }
@@ -635,7 +898,7 @@ async function assignTask(taskId, applicantEmail, notificationId) {
         // Update task with assigned user and status
         await updateDoc(taskRef, {
             assignedTo: applicantEmail,
-            status: 'assigned',
+            status: 'closed', // Mark as closed to remove from available tasks
             assignedAt: serverTimestamp()
         });
         
@@ -667,8 +930,12 @@ async function assignTask(taskId, applicantEmail, notificationId) {
 
 
 function showNotificationPanel() {
-    document.getElementById('notification-panel').classList.add('show');
-    document.getElementById('notification-overlay').classList.add('show');
+    const panel = document.getElementById('notification-panel');
+    const overlay = document.getElementById('notification-overlay');
+    // ensure visible via style in addition to class for robustness
+    panel.style.display = 'block';
+    panel.classList.add('show');
+    overlay.classList.add('show');
 }
 
 // Debug function to test notification display
@@ -700,8 +967,11 @@ async function createTestNotification() {
 }
 
 function hideNotificationPanel() {
-    document.getElementById('notification-panel').classList.remove('show');
-    document.getElementById('notification-overlay').classList.remove('show');
+    const panel = document.getElementById('notification-panel');
+    const overlay = document.getElementById('notification-overlay');
+    panel.classList.remove('show');
+    overlay.classList.remove('show');
+    panel.style.display = 'none';
 }
 
 // Character counting functionality
@@ -743,13 +1013,114 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('signout-btn').addEventListener('click', handleLogOut);
     document.getElementById('signin-toggle').addEventListener('click', showSignInForm);
     document.getElementById('signup-toggle').addEventListener('click', showSignUpForm);
-    document.getElementById('bell-icon').addEventListener('click', showNotificationPanel);
-    document.getElementById('notification-overlay').addEventListener('click', hideNotificationPanel);
-    document.getElementById('close-notifications').addEventListener('click', hideNotificationPanel);
-    document.getElementById('clear-notifications').addEventListener('click', clearAllNotifications);
+    // Bell icon toggle functionality
+    document.getElementById('bell-icon').addEventListener('click', function() {
+        const panel = document.getElementById('notification-panel');
+        const overlay = document.getElementById('notification-overlay');
+        
+        if (panel.classList.contains('show')) {
+            // Hide panel
+            panel.classList.remove('show');
+            overlay.classList.remove('show');
+            panel.style.display = 'none';
+        } else {
+            // Show panel
+            panel.classList.add('show');
+            overlay.classList.add('show');
+            panel.style.display = 'block';
+        }
+    });
+    
+    // Global functions for onclick handlers
+    window.closeNotificationPanel = function() {
+        console.log('Close button clicked via onclick!');
+        const panel = document.getElementById('notification-panel');
+        const overlay = document.getElementById('notification-overlay');
+        panel.classList.remove('show');
+        overlay.classList.remove('show');
+        panel.style.display = 'none';
+    };
+    
+    window.clearAllAndClose = function() {
+        console.log('Clear All button clicked via onclick!');
+        // Empty the notification list
+        const notificationList = document.getElementById('notification-list');
+        notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+        
+        // Clear from database
+        clearAllNotifications();
+        
+        // Hide the panel
+        const panel = document.getElementById('notification-panel');
+        const overlay = document.getElementById('notification-overlay');
+        panel.classList.remove('show');
+        overlay.classList.remove('show');
+        panel.style.display = 'none';
+    };
+    
+    // Overlay click does nothing (only close button should close)
+    document.getElementById('notification-overlay').addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    
+    // Profile dropdown functionality
+    const profileIcon = document.getElementById('profile-icon');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileSignout = document.getElementById('profile-signout');
+    
+    if (profileIcon && profileDropdown) {
+        profileIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            profileDropdown.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!profileIcon.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.remove('show');
+            }
+        });
+        
+        // Sign out functionality
+        if (profileSignout) {
+            profileSignout.addEventListener('click', function() {
+                handleLogOut();
+                profileDropdown.classList.remove('show');
+            });
+        }
+        
+        // Rating modal functionality
+        const profileRating = document.getElementById('profile-rating');
+        const ratingModal = document.getElementById('rating-modal');
+        const ratingModalClose = document.getElementById('rating-modal-close');
+        
+        if (profileRating) {
+            profileRating.addEventListener('click', function() {
+                showRatingModal();
+                profileDropdown.classList.remove('show');
+            });
+        }
+        
+        if (ratingModalClose) {
+            ratingModalClose.addEventListener('click', hideRatingModal);
+        }
+        
+        // Close rating modal when clicking outside
+        if (ratingModal) {
+            ratingModal.addEventListener('click', function(e) {
+                if (e.target === ratingModal) {
+                    hideRatingModal();
+                }
+            });
+        }
+    }
     
     setupCharacterCounters();
     
     window.createTestNotification = createTestNotification;
     window.clearAllNotifications = clearAllNotifications;
+    window.clearAllTasks = clearAllTasks;
+    window.togglePassword = togglePassword;
+    window.addRatingToUser = addRatingToUser;
+    window.testRating = testRating;
 });

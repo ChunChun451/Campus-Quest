@@ -285,6 +285,277 @@ header h1 {
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
+/* Password container styling */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container input {
+    padding-right: 40px; /* Make room for the eye icon */
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 16px;
+    color: #6c757d;
+    transition: color 0.3s ease;
+    user-select: none;
+    z-index: 10;
+}
+
+.toggle-password:hover {
+    color: #495057;
+}
+
+/* Profile container styling */
+.profile-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    padding: 8px;
+    border-radius: 50%;
+    color: white;
+}
+
+.profile-icon:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.profile-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: rgba(30, 30, 46, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem;
+    min-width: 200px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.profile-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.profile-info {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-username {
+    color: #e2e8f0;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.profile-email {
+    color: #a0aec0;
+    font-size: 0.9rem;
+}
+
+.profile-signout {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.profile-signout:hover {
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.profile-rating {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.profile-rating:hover {
+    background: linear-gradient(135deg, #5a67d8, #6b46c1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Rating Modal */
+.rating-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.rating-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.rating-modal-content {
+    background: rgba(30, 30, 46, 0.95);
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    max-width: 800px;
+    width: 90%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    animation: modalSlideIn 0.5s ease-out;
+}
+
+.rating-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rating-modal-header h2 {
+    color: #e2e8f0;
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 300;
+}
+
+.rating-modal-close {
+    background: none;
+    border: none;
+    color: #a0aec0;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.rating-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+.rating-sections {
+    display: flex;
+    gap: 2rem;
+}
+
+.rating-section {
+    flex: 1;
+    padding: 1.5rem;
+    background: rgba(45, 45, 70, 0.3);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rating-section h3 {
+    color: #e2e8f0;
+    margin: 0 0 1rem 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.rating-section p {
+    color: #a0aec0;
+    margin: 0 0 1.5rem 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.star-rating-display {
+    text-align: center;
+}
+
+.stars {
+    display: flex;
+    justify-content: center;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.star {
+    font-size: 1.5rem;
+    color: #ffd700;
+    transition: all 0.3s ease;
+}
+
+.star.filled {
+    color: #ffd700;
+}
+
+.star.empty {
+    color: #4a5568;
+}
+
+.rating-text {
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Responsive design for rating modal */
+@media (max-width: 768px) {
+    .rating-sections {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .rating-modal-content {
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+    
+    .rating-section {
+        padding: 1rem;
+    }
+}
+
 /* Notification bell styling */
 .notification-bell {
     position: relative;
@@ -330,7 +601,7 @@ header h1 {
     height: 100vh;
     background: white;
     box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
-    z-index: 2147483647 !important; /* Maximum z-index value */
+    z-index: 999999 !important; /* High but not maximum to avoid conflicts */
     transition: right 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -342,8 +613,7 @@ header h1 {
     right: 0;
     pointer-events: auto;
     opacity: 1;
-    z-index: 2147483647 !important;
-    isolation: isolate; /* Creates a new stacking context */
+    z-index: 999999 !important;
 }
 
 .panel-header {
@@ -354,7 +624,7 @@ header h1 {
     justify-content: space-between;
     align-items: center;
     position: relative;
-    z-index: 1;
+    z-index: 1000000;
 }
 
 .panel-header h3 {
@@ -366,6 +636,8 @@ header h1 {
 .panel-controls {
     display: flex;
     gap: 0.5rem;
+    position: relative;
+    z-index: 1000001;
 }
 
 .clear-btn {
@@ -379,7 +651,7 @@ header h1 {
     transition: background 0.3s ease;
     pointer-events: auto !important;
     position: relative;
-    z-index: 10;
+    z-index: 1000002;
 }
 
 .clear-btn:hover {
@@ -400,13 +672,16 @@ header h1 {
     padding: 0.4rem 0.8rem;
     border-radius: 4px;
     font-size: 1rem;
-    cursor: pointer;
+    cursor: pointer !important;
     transition: background 0.3s ease;
     width: 32px;
     height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+    z-index: 1000002;
+    pointer-events: auto !important;
 }
 
 .close-btn:hover {
@@ -427,6 +702,30 @@ header h1 {
     transition: background 0.3s ease;
     cursor: pointer;
     position: relative;
+}
+
+/* Per-notification close button */
+.notification-item .notif-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 14px;
+    line-height: 1;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.2s ease, color 0.2s ease;
+    z-index: 1000003;
+    pointer-events: auto !important;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.notification-item .notif-close:hover {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border-color: rgba(220, 53, 69, 0.3);
 }
 
 .notification-item:hover {
@@ -500,17 +799,15 @@ header h1 {
     width: 100% !important;
     height: 100% !important;
     background: transparent !important; /* No dimming effect - completely transparent */
-    /* Alternative: very subtle dimming - uncomment line below and comment line above */
-    /* background: rgba(0, 0, 0, 0.05) !important; */
-    z-index: 2147483646 !important; /* Just below the panel */
+    z-index: 999998 !important; /* Lower than panel */
     opacity: 0;
-    pointer-events: none;
+    pointer-events: none !important; /* Never block clicks */
     transition: opacity 0.3s ease;
 }
 
 .notification-overlay.show {
     opacity: 1;
-    pointer-events: auto;
+    pointer-events: none !important; /* Still never block clicks */
 }
 
 /* Main layout */
