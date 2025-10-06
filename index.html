@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campus Quest</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&family=MedievalSharp&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -83,7 +84,7 @@
             </div>
             
             <form id="signin-form" class="auth-form">
-                <input type="email" id="username" placeholder="Enter your email" required>
+                <input type="email" id="signin-email" placeholder="Enter your email" required> 
                 <div class="password-container">
                     <input type="password" id="password" placeholder="Enter your password" required>
                     <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
@@ -94,7 +95,7 @@
             
             <form id="signup-form" class="auth-form hidden">
                 <input type="email" id="new-email" placeholder="Enter your IITJ email" required>
-                <input type="text" id="username" placeholder="Choose a username" required>
+                <input type="text" id="signup-username" placeholder="Choose a username" required> 
                 <div class="password-container">
                     <input type="password" id="new-password" placeholder="Create a password" required>
                     <span class="toggle-password" onclick="togglePassword('new-password', this)">👁️</span>
@@ -103,71 +104,49 @@
                     <input type="password" id="confirm-password" placeholder="Confirm password" required>
                     <span class="toggle-password" onclick="togglePassword('confirm-password', this)">👁️</span>
                 </div>
-                <button type="button" id="signup-btn">Create Account</button>
+                <button type="button" id="signup-btn">Sign Up</button>
                 <div id="signup-error" class="auth-error" style="display: none;"></div>
             </form>
         </div>
     </div>
     
     <main id="main-content" style="display: none;">
-        <section class="task-form-container" id="newTaskFormContainer">
+        <div class="task-form-container" id="newTaskFormContainer" style="display: none;">
+            <h2>Post a New Task</h2>
+            <p class="char-count" id="task-title-char-count">0/100</p>
             <form id="task-form">
-                <h2>Post a New Task</h2>
-                <div class="form-group">
-                    <label for="task-title">Task Title:</label>
-                    <input type="text" id="task-title" name="task-title" maxlength="100" required>
-                    <div class="char-count" id="title-count">0/100 characters</div>
-                </div>
+                <input type="text" id="task-title" placeholder="Task Title (max 100 characters)" maxlength="100" required>
+                <p class="char-count" id="description-char-count">0/500</p>
+                <textarea id="description" placeholder="Detailed Description (max 500 characters)" maxlength="500" required></textarea>
+                <input type="number" id="reward" placeholder="Reward in ₹ (e.g., 500)" min="1" max="10000" required>
                 
-                <div class="form-group">
-                    <label for="description">Description:</label>
-                    <textarea id="description" name="description" rows="4" maxlength="500" required></textarea>
-                    <div class="char-count" id="desc-count">0/500 characters</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="reward">Reward (₹):</label>
-                    <input type="number" id="reward" name="reward" min="1" max="10000" step="1" placeholder="Enter amount in ₹" required>
-                    <div class="reward-help">Enter cash reward amount in Indian Rupees (₹1 - ₹10,000)</div>
-                </div>
-                
-                <div class="form-group">
+                <div class="deadline-fields">
                     <label for="deadline-date">Deadline Date:</label>
-                    <input type="date" id="deadline-date" name="deadline-date" required>
+                    <input type="date" id="deadline-date" required>
+                    <label for="deadline-time">Time:</label>
+                    <input type="time" id="deadline-time" required>
                 </div>
-                
-                <div class="form-group">
-                    <label for="deadline-time">Deadline Time:</label>
-                    <input type="time" id="deadline-time" name="deadline-time" required>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit">Post Task</button>
-                    <button type="button" id="cancel-task-btn">Cancel</button>
-                </div>
+                <button type="submit">Post Task</button>
             </form>
+        </div>
+        
+        <section class="task-list">
+            <div class="no-tasks">Please log in to see tasks.</div>
         </section>
         
-        <section class="task-list-container">
-            <h2>Available Tasks</h2>
-            <div class="task-list">
-                </div>
-        </section>
+        <footer>
+            <p>© Campus Quest | IITJ</p>
+        </footer>
     </main>
-    
-    <div class="notification-overlay" id="notification-overlay"></div>
-    
-    <!-- Rating Modal -->
-    <div class="rating-modal" id="rating-modal">
-        <div class="rating-modal-content">
-            <div class="rating-modal-header">
-                <h2>My Ratings</h2>
-                <button class="rating-modal-close" id="rating-modal-close">&times;</button>
-            </div>
-            <div class="rating-sections">
+
+    <div id="rating-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="rating-modal-close">&times;</span>
+            <h2>My Ratings</h2>
+            <div class="rating-container">
                 <div class="rating-section questmaster-section">
                     <h3>As Questmaster</h3>
-                    <p>Each time you post tasks and someone rates you based on your loyalty towards promised incentive, your rating as questmaster increases.</p>
+                    <p>Each time you assign a task and someone rates you based on your loyalty towards payment, your rating as questmaster increases.</p>
                     <div class="star-rating-display" id="questmaster-rating">
                         <div class="stars">
                             <span class="star">☆</span>
