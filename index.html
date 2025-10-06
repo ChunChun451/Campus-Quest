@@ -9,6 +9,23 @@
 <body>
     <header>
         <h1>Campus Quest</h1>
+        
+        <nav class="main-nav" id="main-nav" style="display: none;">
+            <div class="nav-item">
+                <button class="nav-button" id="post-task-btn">
+                    Post a New Task
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="nav-submenu" id="post-task-submenu">
+                    <a href="#" class="submenu-item" id="new-task-item">Create New Task</a>
+                    <a href="#" class="submenu-item" id="task-templates-item">Task Templates</a>
+                    <a href="#" class="submenu-item" id="my-tasks-item">My Tasks</a>
+                    <a href="#" class="submenu-item" id="task-history-item">Task History</a>
+                    <a href="#" class="submenu-item" id="view-drafts-item">View Drafts</a>
+                </div>
+            </div>
+        </nav>
+        
         <div class="header-controls">
             <div class="notification-bell" id="notification-bell" style="display: none;">
                 <div class="bell-icon" id="bell-icon">
@@ -21,11 +38,19 @@
                 <div class="profile-icon" id="profile-icon">👤</div>
                 <div class="profile-dropdown" id="profile-dropdown">
                     <div class="profile-info">
-                        <div class="profile-username" id="profile-username">Username</div>
-                        <div class="profile-email" id="profile-email">user@example.com</div>
+                        <div class="profile-field">
+                            <label for="profile-username-input">Username:</label>
+                            <input type="text" id="profile-username-input" class="profile-input" placeholder="Enter username">
+                        </div>
+                        <div class="profile-field">
+                            <label for="profile-email-display">Email:</label>
+                            <div id="profile-email-display" class="profile-email-display">user@example.com</div>
+                        </div>
                     </div>
-                    <button class="profile-rating" id="profile-rating">My Rating</button>
-                    <button class="profile-signout" id="profile-signout">Sign Out</button>
+                    <div class="profile-actions">
+                        <button class="profile-save" id="profile-save">Save Changes</button>
+                        <button class="profile-rating" id="profile-rating">My Rating</button>
+                    </div>
                 </div>
             </div>
             
@@ -85,7 +110,7 @@
     </div>
     
     <main id="main-content" style="display: none;">
-        <section class="task-form-container">
+        <section class="task-form-container" id="newTaskFormContainer">
             <form id="task-form">
                 <h2>Post a New Task</h2>
                 <div class="form-group">
@@ -106,7 +131,20 @@
                     <div class="reward-help">Enter cash reward amount in Indian Rupees (₹1 - ₹10,000)</div>
                 </div>
                 
-                <button type="submit">Post Task</button>
+                <div class="form-group">
+                    <label for="deadline-date">Deadline Date:</label>
+                    <input type="date" id="deadline-date" name="deadline-date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="deadline-time">Deadline Time:</label>
+                    <input type="time" id="deadline-time" name="deadline-time" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit">Post Task</button>
+                    <button type="button" id="cancel-task-btn">Cancel</button>
+                </div>
             </form>
         </section>
         
@@ -127,10 +165,10 @@
                 <button class="rating-modal-close" id="rating-modal-close">&times;</button>
             </div>
             <div class="rating-sections">
-                <div class="rating-section aurora-section">
-                    <h3>As Aurora</h3>
-                    <p>Each time you post tasks and someone rates you based on your loyalty towards promised incentive, your rating as aurora increases.</p>
-                    <div class="star-rating-display" id="aurora-rating">
+                <div class="rating-section questmaster-section">
+                    <h3>As Questmaster</h3>
+                    <p>Each time you post tasks and someone rates you based on your loyalty towards promised incentive, your rating as questmaster increases.</p>
+                    <div class="star-rating-display" id="questmaster-rating">
                         <div class="stars">
                             <span class="star">☆</span>
                             <span class="star">☆</span>
@@ -138,7 +176,7 @@
                             <span class="star">☆</span>
                             <span class="star">☆</span>
                         </div>
-                        <div class="rating-text" id="aurora-rating-text">No ratings yet</div>
+                        <div class="rating-text" id="questmaster-rating-text">No ratings yet</div>
                     </div>
                 </div>
                 <div class="rating-section voyager-section">

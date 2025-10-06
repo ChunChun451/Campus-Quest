@@ -63,15 +63,15 @@ function throttle(func, limit) {
 let tasksUnsubscribe = null;
 let notificationsUnsubscribe = null;
 
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
     if (user && user.emailVerified) {
         console.log("User is logged in:", user);
-        updateAuthUI(user);
+        await updateAuthUI(user);
         displayTasks();
         displayNotifications();
     } else {
         console.log("User is logged out.");
-        updateAuthUI(null);
+        await updateAuthUI(null);
         
         // Clean up listeners
         if (tasksUnsubscribe) {
@@ -184,6 +184,30 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function saveTaskToStorage(task) {
+    try {
+        const tasks = getTasksFromStorage();
+        const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        task.id = taskId;
+        tasks.push(task);
+        localStorage.setItem('campus_quest_tasks', JSON.stringify(tasks));
+        return taskId;
+    } catch (error) {
+        console.error('Error saving task to localStorage:', error);
+        return null;
+    }
+}
+
+function getTasksFromStorage() {
+    try {
+        const tasks = localStorage.getItem('campus_quest_tasks');
+        return tasks ? JSON.parse(tasks) : [];
+    } catch (error) {
+        console.error('Error reading tasks from localStorage:', error);
+        return [];
+    }
+}
+
 async function handleFormSubmit(event) {
     event.preventDefault();
     const currentUser = auth.currentUser;
@@ -197,8 +221,10 @@ async function handleFormSubmit(event) {
     const taskTitle = document.getElementById('task-title').value.trim();
     const description = document.getElementById('description').value.trim();
     const rewardValue = document.getElementById('reward').value;
+    const deadlineDate = document.getElementById('deadline-date').value;
+    const deadlineTime = document.getElementById('deadline-time').value;
     
-    if (!taskTitle || !description || !rewardValue) {
+    if (!taskTitle || !description || !rewardValue || !deadlineDate || !deadlineTime) {
         showErrorMessage('Please fill in all fields');
         return;
     }
@@ -220,23 +246,52 @@ async function handleFormSubmit(event) {
         return;
     }
     
+    // Validate deadline (must be in the future)
+    const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
+    const currentDateTime = new Date();
+    
+    if (deadlineDateTime <= currentDateTime) {
+        showErrorMessage('Deadline must be in the future. Please select a date and time that is later than now.');
+        return;
+    }
+    
+    // Format deadline as ISO string for storage
+    const deadlineISO = deadlineDateTime.toISOString();
+    
     // Show loading state
     const originalText = submitButton.textContent;
     submitButton.textContent = 'Posting...';
     submitButton.disabled = true;
     
     try {
-        await addDoc(collection(db, 'tasks'), {
+        // Create task object
+        const taskData = {
             title: taskTitle,
             description: description,
             reward: reward,
             creator: currentUser.email,
             applicants: [],
-            createdAt: serverTimestamp(),
-            status: 'open'
-        });
+            createdAt: new Date().toISOString(),
+            status: 'open',
+            deadline: deadlineISO
+        };
+        
+        // Save to Firestore
+        await addDoc(collection(db, 'tasks'), taskData);
+        
+        // Also save to localStorage for GitHub Pages compatibility
+        saveTaskToStorage(taskData);
+        
         document.getElementById('task-form').reset();
         showSuccessMessage('Task posted successfully!');
+        
+        // Hide the task creation form after successful submission
+        const taskFormContainer = document.getElementById('newTaskFormContainer');
+        const mainContent = document.getElementById('main-content');
+        if (taskFormContainer && mainContent) {
+            taskFormContainer.style.display = 'none';
+            mainContent.classList.remove('form-visible'); // Remove class for layout adjustment
+        }
     } catch (error) {
         console.error('Error posting task:', error);
         if (error.code === 'permission-denied') {
@@ -417,10 +472,20 @@ async function handleSignUp() {
         await addDoc(collection(db, 'users'), {
             email: email,
             username: username,
-            auroraRatings: [],
+            questmasterRatings: [],
             voyagerRatings: [],
             createdAt: serverTimestamp()
         });
+        
+        // Also save to localStorage for GitHub Pages compatibility
+        const userData = {
+            email: email,
+            username: username,
+            questmasterRatings: [],
+            voyagerRatings: [],
+            createdAt: new Date().toISOString()
+        };
+        saveUserDataToStorage(email, userData);
         
         await sendEmailVerification(userCredential.user);
         showSuccessMessage('Account created! Please check your IITJ email to verify your account before logging in.');
@@ -514,17 +579,22 @@ function showSignUpForm() {
     document.getElementById('signup-toggle').classList.add('active');
 }
 
-function updateAuthUI(user) {
+async function updateAuthUI(user) {
     const signinModal = document.getElementById('signin-modal');
     const mainContent = document.getElementById('main-content');
     const userInfo = document.getElementById('user-info');
     const profileContainer = document.getElementById('profile-container');
+    const mainNav = document.getElementById('main-nav');
     
     if (user) {
         signinModal.style.display = 'none';
         mainContent.style.display = 'grid';
         userInfo.style.display = 'flex';
-        document.getElementById('current-user').textContent = user.email;
+        mainNav.style.display = 'flex';
+        
+        // Update welcome message with username
+        await updateWelcomeMessage(user);
+        
         document.getElementById('notification-bell').style.display = 'block';
         profileContainer.style.display = 'block';
         
@@ -534,31 +604,85 @@ function updateAuthUI(user) {
         signinModal.style.display = 'flex';
         mainContent.style.display = 'none';
         userInfo.style.display = 'none';
+        mainNav.style.display = 'none';
         document.getElementById('notification-bell').style.display = 'none';
         profileContainer.style.display = 'none';
     }
 }
 
-async function updateProfileDropdown(user) {
+async function updateWelcomeMessage(user) {
     try {
-        // Get user data from Firestore
-        const q = query(collection(db, 'users'), where('email', '==', user.email));
-        const snapshot = await getDocs(q);
+        // Get user data from localStorage
+        const userData = getUserDataFromStorage(user.email);
+        document.getElementById('current-user').textContent = userData.username;
+    } catch (error) {
+        console.error('Error fetching username for welcome message:', error);
+        // Fallback to email prefix
+        document.getElementById('current-user').textContent = user.email.split('@')[0];
+    }
+}
+
+function updateProfileDropdown(user) {
+    try {
+        // Get user data from localStorage
+        const userData = getUserDataFromStorage(user.email);
         
-        if (!snapshot.empty) {
-            const userData = snapshot.docs[0].data();
-            document.getElementById('profile-username').textContent = userData.username;
-        } else {
-            // Fallback to email if username not found
-            document.getElementById('profile-username').textContent = user.email.split('@')[0];
+        // Update username field
+        const usernameInput = document.getElementById('profile-username-input');
+        if (usernameInput) {
+            usernameInput.value = userData.username || user.email.split('@')[0];
         }
         
-        document.getElementById('profile-email').textContent = user.email;
+        // Update email display
+        const emailDisplay = document.getElementById('profile-email-display');
+        if (emailDisplay) {
+            emailDisplay.textContent = user.email;
+        }
     } catch (error) {
-        console.error('Error fetching user data:', error);
-        // Fallback to email
-        document.getElementById('profile-username').textContent = user.email.split('@')[0];
-        document.getElementById('profile-email').textContent = user.email;
+        console.error('Error updating profile dropdown:', error);
+        // Fallback values
+        const usernameInput = document.getElementById('profile-username-input');
+        if (usernameInput) {
+            usernameInput.value = user.email.split('@')[0];
+        }
+        const emailDisplay = document.getElementById('profile-email-display');
+        if (emailDisplay) {
+            emailDisplay.textContent = user.email;
+        }
+    }
+}
+
+function getUserDataFromStorage(email) {
+    try {
+        const userData = localStorage.getItem(`user_${email}`);
+        if (userData) {
+            return JSON.parse(userData);
+        }
+        // Return default data if not found
+        return {
+            username: email.split('@')[0],
+            email: email,
+            questmasterRatings: [],
+            voyagerRatings: []
+        };
+    } catch (error) {
+        console.error('Error reading user data from localStorage:', error);
+        return {
+            username: email.split('@')[0],
+            email: email,
+            questmasterRatings: [],
+            voyagerRatings: []
+        };
+    }
+}
+
+function saveUserDataToStorage(email, userData) {
+    try {
+        localStorage.setItem(`user_${email}`, JSON.stringify(userData));
+        return true;
+    } catch (error) {
+        console.error('Error saving user data to localStorage:', error);
+        return false;
     }
 }
 
@@ -807,17 +931,17 @@ async function loadUserRatings() {
         
         if (!snapshot.empty) {
             const userData = snapshot.docs[0].data();
-            const auroraRatings = userData.auroraRatings || [];
+            const questmasterRatings = userData.questmasterRatings || [];
             const voyagerRatings = userData.voyagerRatings || [];
             
-            const auroraAverage = auroraRatings.length > 0 
-                ? auroraRatings.reduce((sum, rating) => sum + rating, 0) / auroraRatings.length 
+            const questmasterAverage = questmasterRatings.length > 0 
+                ? questmasterRatings.reduce((sum, rating) => sum + rating, 0) / questmasterRatings.length 
                 : 0;
             const voyagerAverage = voyagerRatings.length > 0 
                 ? voyagerRatings.reduce((sum, rating) => sum + rating, 0) / voyagerRatings.length 
                 : 0;
             
-            renderStarRating(auroraAverage, 'aurora-rating');
+            renderStarRating(questmasterAverage, 'questmaster-rating');
             renderStarRating(voyagerAverage, 'voyager-rating');
         }
     } catch (error) {
@@ -845,7 +969,7 @@ async function addRatingToUser(userEmail, ratingType, rating) {
             const userDoc = snapshot.docs[0];
             const userData = userDoc.data();
             
-            const ratingsArray = ratingType === 'aurora' ? 'auroraRatings' : 'voyagerRatings';
+            const ratingsArray = ratingType === 'questmaster' ? 'questmasterRatings' : 'voyagerRatings';
             const currentRatings = userData[ratingsArray] || [];
             
             await updateDoc(userDoc.ref, {
@@ -1006,11 +1130,174 @@ function setupCharacterCounters() {
     }
 }
 
+function handleSaveProfileChanges() {
+    try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            showErrorMessage('No user logged in');
+            return;
+        }
+        
+        const usernameInput = document.getElementById('profile-username-input');
+        if (!usernameInput) {
+            showErrorMessage('Username input not found');
+            return;
+        }
+        
+        const newUsername = usernameInput.value.trim();
+        if (!newUsername) {
+            showErrorMessage('Username cannot be empty');
+            return;
+        }
+        
+        if (newUsername.length < 3) {
+            showErrorMessage('Username must be at least 3 characters long');
+            return;
+        }
+        
+        // Get current user data
+        const userData = getUserDataFromStorage(currentUser.email);
+        
+        // Update username
+        userData.username = newUsername;
+        
+        // Save to localStorage
+        const success = saveUserDataToStorage(currentUser.email, userData);
+        
+        if (success) {
+            // Update welcome message
+            document.getElementById('current-user').textContent = newUsername;
+            showSuccessMessage('Username updated successfully!');
+        } else {
+            showErrorMessage('Failed to save username');
+        }
+        
+    } catch (error) {
+        console.error('Error saving profile changes:', error);
+        showErrorMessage('An error occurred while saving changes');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Hide the task form container on page load
+    const taskFormContainer = document.getElementById('newTaskFormContainer');
+    if (taskFormContainer) {
+        taskFormContainer.style.display = 'none';
+    }
+    
     document.getElementById('task-form').addEventListener('submit', handleFormSubmit);
+    
+    // Cancel task button functionality
+    const cancelTaskBtn = document.getElementById('cancel-task-btn');
+    if (cancelTaskBtn) {
+        cancelTaskBtn.addEventListener('click', function() {
+            const taskFormContainer = document.getElementById('newTaskFormContainer');
+            const mainContent = document.getElementById('main-content');
+            if (taskFormContainer && mainContent) {
+                taskFormContainer.style.display = 'none';
+                mainContent.classList.remove('form-visible'); // Remove class for layout adjustment
+                // Reset the form when canceling
+                document.getElementById('task-form').reset();
+            }
+        });
+    }
+    
+    // Set minimum date for deadline date input (today)
+    const deadlineDateInput = document.getElementById('deadline-date');
+    if (deadlineDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        deadlineDateInput.min = today;
+    }
+    
     document.getElementById('signin-btn').addEventListener('click', handleLogIn);
+    
+    // Add Enter key functionality to sign-in form
+    const signinForm = document.getElementById('signin-form');
+    if (signinForm) {
+        signinForm.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault(); // Prevent form submission
+                handleLogIn(); // Trigger sign-in
+            }
+        });
+    }
+    
     document.getElementById('signup-btn').addEventListener('click', handleSignUp);
+    
+    // Add Enter key functionality to sign-up form
+    const signupForm = document.getElementById('signup-form');
+    if (signupForm) {
+        signupForm.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault(); // Prevent form submission
+                handleSignUp(); // Trigger sign-up
+            }
+        });
+    }
     document.getElementById('signout-btn').addEventListener('click', handleLogOut);
+    
+    // Navigation dropdown functionality
+    const postTaskBtn = document.getElementById('post-task-btn');
+    const postTaskSubmenu = document.getElementById('post-task-submenu');
+    const navItem = document.querySelector('.nav-item');
+    
+    if (postTaskBtn && postTaskSubmenu && navItem) {
+        postTaskBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            postTaskSubmenu.classList.toggle('show');
+            navItem.classList.toggle('active');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!postTaskBtn.contains(e.target) && !postTaskSubmenu.contains(e.target)) {
+                postTaskSubmenu.classList.remove('show');
+                navItem.classList.remove('active');
+            }
+        });
+        
+        // Handle submenu item clicks
+        const submenuItems = postTaskSubmenu.querySelectorAll('.submenu-item');
+        submenuItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const itemId = this.id;
+                
+                // Handle different submenu actions
+                switch(itemId) {
+                    case 'new-task-item':
+                        // Show the task creation form
+                        const taskFormContainer = document.getElementById('newTaskFormContainer');
+                        const mainContent = document.getElementById('main-content');
+                        if (taskFormContainer && mainContent) {
+                            console.log("Button clicked, attempting to show form");
+                            taskFormContainer.style.display = 'block';
+                            mainContent.classList.add('form-visible'); // Add class for layout adjustment
+                            // Scroll to the form for better UX
+                            taskFormContainer.scrollIntoView({ behavior: 'smooth' });
+                        }
+                        break;
+                    case 'task-templates-item':
+                        showSuccessMessage('Task Templates feature coming soon!');
+                        break;
+                    case 'my-tasks-item':
+                        showSuccessMessage('My Tasks feature coming soon!');
+                        break;
+                    case 'task-history-item':
+                        showSuccessMessage('Task History feature coming soon!');
+                        break;
+                    case 'view-drafts-item':
+                        showSuccessMessage('View Drafts feature coming soon!');
+                        break;
+                }
+                
+                // Close dropdown after action
+                postTaskSubmenu.classList.remove('show');
+                navItem.classList.remove('active');
+            });
+        });
+    }
+    
     document.getElementById('signin-toggle').addEventListener('click', showSignInForm);
     document.getElementById('signup-toggle').addEventListener('click', showSignUpForm);
     // Bell icon toggle functionality
@@ -1066,7 +1353,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Profile dropdown functionality
     const profileIcon = document.getElementById('profile-icon');
     const profileDropdown = document.getElementById('profile-dropdown');
-    const profileSignout = document.getElementById('profile-signout');
     
     if (profileIcon && profileDropdown) {
         profileIcon.addEventListener('click', function(e) {
@@ -1081,10 +1367,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Sign out functionality
-        if (profileSignout) {
-            profileSignout.addEventListener('click', function() {
-                handleLogOut();
+        // Save changes functionality
+        const profileSave = document.getElementById('profile-save');
+        if (profileSave) {
+            profileSave.addEventListener('click', function() {
+                handleSaveProfileChanges();
                 profileDropdown.classList.remove('show');
             });
         }

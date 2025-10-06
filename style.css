@@ -96,6 +96,109 @@ header h1 {
     font-weight: 500;
 }
 
+/* Main Navigation */
+.main-nav {
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0;
+    position: relative;
+}
+
+.nav-item {
+    position: relative;
+}
+
+.nav-button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dropdown-arrow {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.nav-item.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.nav-button:hover {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.nav-button:active {
+    transform: translateY(0);
+}
+
+.nav-submenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: rgba(30, 30, 46, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.nav-submenu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.submenu-item {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: #e2e8f0;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.submenu-item:last-child {
+    border-bottom: none;
+}
+
+.submenu-item:hover {
+    background: rgba(102, 126, 234, 0.2);
+    color: white;
+    padding-left: 1.25rem;
+}
+
+.submenu-item:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.submenu-item:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.submenu-item:only-child {
+    border-radius: 8px;
+}
+
 .user-info button {
     background: rgba(255, 255, 255, 0.2);
     color: white;
@@ -363,6 +466,72 @@ header h1 {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.profile-field {
+    margin-bottom: 1rem;
+}
+
+.profile-field label {
+    display: block;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.profile-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.profile-input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.profile-input::placeholder {
+    color: #a0aec0;
+}
+
+.profile-email-display {
+    color: #a0aec0;
+    font-size: 0.9rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.profile-save {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.profile-save:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+}
+
 .profile-username {
     color: #e2e8f0;
     font-size: 1rem;
@@ -375,23 +544,28 @@ header h1 {
     font-size: 0.9rem;
 }
 
-.profile-signout {
+#signout-btn {
     background: linear-gradient(135deg, #dc3545, #c82333);
     color: white;
     border: none;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1.5rem;
     border-radius: 8px;
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    width: 100%;
+    margin-left: 1rem;
 }
 
-.profile-signout:hover {
-    background: linear-gradient(135deg, #c82333, #bd2130);
+#signout-btn:hover {
+    background: linear-gradient(135deg, #c82333, #a71e2a);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+#signout-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.2);
 }
 
 .profile-rating {
@@ -553,6 +727,26 @@ header h1 {
     
     .rating-section {
         padding: 1rem;
+    }
+    
+    /* Mobile navigation adjustments */
+    .main-nav {
+        margin: 0.5rem 0;
+    }
+    
+    .nav-button {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+    }
+    
+    .nav-submenu {
+        min-width: 180px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    
+    .nav-submenu.show {
+        transform: translateX(-50%) translateY(0);
     }
 }
 
@@ -821,6 +1015,40 @@ main {
     align-items: start;
 }
 
+/* Form container styling */
+#newTaskFormContainer {
+    display: none; /* Hidden by default */
+}
+
+#newTaskFormContainer.show {
+    display: block; /* Show when requested */
+}
+
+/* Form actions styling */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+#cancel-task-btn {
+    background: rgba(108, 117, 125, 0.8);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#cancel-task-btn:hover {
+    background: rgba(108, 117, 125, 1);
+    transform: translateY(-1px);
+}
+
 /* Form styling */
 .task-form {
     background: rgba(30, 30, 46, 0.8);
@@ -870,6 +1098,18 @@ main {
     background: rgba(45, 45, 70, 0.6);
     color: #e2e8f0;
     backdrop-filter: blur(10px);
+}
+
+/* Specific styling for date and time inputs */
+.form-group input[type="date"],
+.form-group input[type="time"] {
+    color-scheme: dark;
+}
+
+.form-group input[type="date"]::-webkit-calendar-picker-indicator,
+.form-group input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
 }
 
 .form-group input:focus,
@@ -953,6 +1193,7 @@ button[type="submit"]:active {
 }
 
 /* Task list container */
+/* Task list container - full width when form is hidden */
 .task-list-container {
     background: rgba(30, 30, 46, 0.8);
     padding: 2rem;
@@ -961,6 +1202,12 @@ button[type="submit"]:active {
     border: 1px solid rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
+    grid-column: 1 / -1; /* Span full width by default */
+}
+
+/* When task form is visible, adjust task list to second column */
+main.form-visible .task-list-container {
+    grid-column: 2;
 }
 
 .task-list-container:hover {
