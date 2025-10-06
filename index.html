@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campus Quest</title>
-    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&family=MedievalSharp&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;0;1&family=MedievalSharp&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -84,7 +84,7 @@
             </div>
             
             <form id="signin-form" class="auth-form">
-                <input type="email" id="signin-email" placeholder="Enter your email" required> 
+                <input type="email" id="username" placeholder="Enter your email" required>
                 <div class="password-container">
                     <input type="password" id="password" placeholder="Enter your password" required>
                     <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
@@ -95,7 +95,7 @@
             
             <form id="signup-form" class="auth-form hidden">
                 <input type="email" id="new-email" placeholder="Enter your IITJ email" required>
-                <input type="text" id="signup-username" placeholder="Choose a username" required> 
+                <input type="text" id="new-username" placeholder="Choose a username" required>
                 <div class="password-container">
                     <input type="password" id="new-password" placeholder="Create a password" required>
                     <span class="toggle-password" onclick="togglePassword('new-password', this)">👁️</span>
@@ -104,49 +104,71 @@
                     <input type="password" id="confirm-password" placeholder="Confirm password" required>
                     <span class="toggle-password" onclick="togglePassword('confirm-password', this)">👁️</span>
                 </div>
-                <button type="button" id="signup-btn">Sign Up</button>
+                <button type="button" id="signup-btn">Create Account</button>
                 <div id="signup-error" class="auth-error" style="display: none;"></div>
             </form>
         </div>
     </div>
-    
+
     <main id="main-content" style="display: none;">
-        <div class="task-form-container" id="newTaskFormContainer" style="display: none;">
-            <h2>Post a New Task</h2>
-            <p class="char-count" id="task-title-char-count">0/100</p>
+        <div id="newTaskFormContainer" class="new-task-form-container">
+            <h2>Post a New Quest</h2>
             <form id="task-form">
-                <input type="text" id="task-title" placeholder="Task Title (max 100 characters)" maxlength="100" required>
-                <p class="char-count" id="description-char-count">0/500</p>
-                <textarea id="description" placeholder="Detailed Description (max 500 characters)" maxlength="500" required></textarea>
-                <input type="number" id="reward" placeholder="Reward in ₹ (e.g., 500)" min="1" max="10000" required>
-                
-                <div class="deadline-fields">
-                    <label for="deadline-date">Deadline Date:</label>
-                    <input type="date" id="deadline-date" required>
-                    <label for="deadline-time">Time:</label>
-                    <input type="time" id="deadline-time" required>
+                <div class="form-group">
+                    <label for="task-title">Task Title (e.g., Courier Pickup from Mess)</label>
+                    <input type="text" id="task-title" maxlength="100" placeholder="A short, clear title" required>
+                    <small class="char-count" data-for="task-title">0/100</small>
                 </div>
-                <button type="submit">Post Task</button>
+                
+                <div class="form-group">
+                    <label for="description">Detailed Description</label>
+                    <textarea id="description" rows="4" maxlength="500" placeholder="Explain what needs to be done, location, and any specific instructions." required></textarea>
+                    <small class="char-count" data-for="description">0/500</small>
+                </div>
+                
+                <div class="form-group form-group-inline">
+                    <div class="inline-item">
+                        <label for="reward">Reward (₹)</label>
+                        <input type="number" id="reward" min="1" max="10000" placeholder="E.g., 50" required>
+                    </div>
+                    <div class="inline-item">
+                        <label for="deadline-date">Deadline Date</label>
+                        <input type="date" id="deadline-date" required>
+                    </div>
+                    <div class="inline-item">
+                        <label for="deadline-time">Deadline Time</label>
+                        <input type="time" id="deadline-time" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="attachments">Attachments (Optional)</label>
+                    <input type="file" id="attachments" multiple>
+                    <small>Attach relevant images or documents (e.g., location map).</small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" id="post-task-submit-btn">Post Quest</button>
+                    <button type="button" class="cancel-btn" id="cancel-task-btn">Cancel</button>
+                </div>
             </form>
         </div>
         
-        <section class="task-list">
-            <div class="no-tasks">Please log in to see tasks.</div>
+        <section class="task-board">
+            <h2>Available Quests</h2>
+            <div class="task-list">
+                </div>
         </section>
-        
-        <footer>
-            <p>© Campus Quest | IITJ</p>
-        </footer>
     </main>
-
-    <div id="rating-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" id="rating-modal-close">&times;</span>
-            <h2>My Ratings</h2>
-            <div class="rating-container">
+    
+    <div id="rating-modal" class="rating-modal">
+        <div class="rating-modal-content">
+            <span class="close-btn" id="rating-modal-close">&times;</span>
+            <h2>My Quest Ratings</h2>
+            <div class="ratings-display">
                 <div class="rating-section questmaster-section">
-                    <h3>As Questmaster</h3>
-                    <p>Each time you assign a task and someone rates you based on your loyalty towards payment, your rating as questmaster increases.</p>
+                    <h3>As QuestMaster</h3>
+                    <p>Your rating as a QuestMaster reflects how well you manage your posted tasks (e.g., clear instructions, prompt payment/closure). This rating is given by the Voyager who completes your task.</p>
                     <div class="star-rating-display" id="questmaster-rating">
                         <div class="stars">
                             <span class="star">☆</span>
