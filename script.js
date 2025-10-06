@@ -23,7 +23,8 @@ import {
     signInWithEmailAndPassword,
     signOut,
     sendEmailVerification,
-    onAuthStateChanged
+    onAuthStateChanged,
+    updateProfile // ADDED: Required for updating Firebase Auth profile
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -113,19 +114,23 @@ async function displayTasks() {
             
             // Process tasks and fetch usernames
             const tasks = [];
-            for (const doc of snapshot.docs) {
+            // Use Promise.all for concurrent fetching of usernames for better performance
+            const usernamePromises = snapshot.docs.map(doc => getUsernameByEmail(doc.data().creator));
+            const usernames = await Promise.all(usernamePromises);
+
+            snapshot.docs.forEach((doc, index) => {
                 const task = { id: doc.id, ...doc.data() };
                 
                 // Skip closed tasks (assigned tasks)
                 if (task.status === 'closed') {
-                    continue;
+                    return; // Use return in forEach to skip to next item
                 }
                 
-                // Get username for creator
-                const username = await getUsernameByEmail(task.creator);
+                // Assign fetched username
+                const username = usernames[index];
                 task.creatorDisplay = username || task.creator.split('@')[0];
                 tasks.push(task);
-            }
+            });
             
             // Display tasks
             tasks.forEach(task => {
@@ -353,9 +358,15 @@ document.addEventListener('click', async function(event) {
         return;
     }
     if (event.target.classList.contains('assign-btn')) {
+        console.log('Assign button clicked!'); // Debug log
+        event.preventDefault();
+        event.stopPropagation();
+        
         const taskId = event.target.dataset.taskId;
         const applicantEmail = event.target.dataset.applicant;
         const notificationId = event.target.dataset.notificationId;
+        
+        console.log('Assign button data:', { taskId, applicantEmail, notificationId }); // Debug log
         
         await assignTask(taskId, applicantEmail, notificationId);
     } else if (event.target.classList.contains('apply-btn')) {
@@ -431,10 +442,11 @@ document.addEventListener('click', async function(event) {
 });
 
 
-// THIS FUNCTION HAS BEEN UPDATED
+// UPDATED: handleSignUp function to save username to Firestore
 async function handleSignUp() {
     const email = document.getElementById('new-email').value.trim();
-    const username = document.getElementById('username').value.trim();
+    // Use the new ID from index.html
+    const username = document.getElementById('signup-username').value.trim(); 
     const password = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     const signupButton = document.getElementById('signup-btn');
@@ -468,7 +480,7 @@ async function handleSignUp() {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         
-        // Save user data to Firestore
+        // 1. Save user data to Firestore, including the username
         await addDoc(collection(db, 'users'), {
             email: email,
             username: username,
@@ -477,7 +489,7 @@ async function handleSignUp() {
             createdAt: serverTimestamp()
         });
         
-        // Also save to localStorage for GitHub Pages compatibility
+        // 2. Also save to localStorage for quick UI access
         const userData = {
             email: email,
             username: username,
@@ -512,7 +524,8 @@ async function handleSignUp() {
 }
 
 async function handleLogIn() {
-    const email = document.getElementById('username').value.trim();
+    // Assuming 'username' is the email input field ID in the signin form
+    const email = document.getElementById('signin-email').value.trim(); 
     const password = document.getElementById('password').value;
     const signinButton = document.getElementById('signin-btn');
     
@@ -533,7 +546,13 @@ async function handleLogIn() {
             await signOut(auth);
             showErrorMessage('Your account is not verified. A new verification link has been sent to your email. Please check your inbox.');
         } else {
-            showSuccessMessage('Welcome back!');
+            // Once logged in, ensure we fetch the username to local storage
+            const userData = await getAndCacheUserData(email);
+            if (!userData) {
+                 showErrorMessage('Could not load user profile. Please try again.');
+            } else {
+                 showSuccessMessage('Welcome back!');
+            }
         }
     } catch (error) {
         console.error('Login error:', error.code);
@@ -556,6 +575,79 @@ async function handleLogIn() {
         signinButton.disabled = false;
     }
 }
+
+// =========================================================
+//  FIXED/ADDED: PROFILE UPDATE LOGIC (handleSaveProfileChanges)
+// =========================================================
+
+async function handleSaveProfileChanges() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        showErrorMessage('You must be signed in to save profile changes.');
+        return;
+    }
+
+    const saveButton = document.getElementById('profile-save');
+    const usernameInput = document.getElementById('profile-username-input');
+    const newUsername = usernameInput.value.trim();
+    const originalText = saveButton.textContent;
+    
+    if (!newUsername || newUsername.length < 3) {
+        showErrorMessage('Username must be at least 3 characters long.');
+        return;
+    }
+    if (newUsername.length > 30) {
+        showErrorMessage('Username cannot be more than 30 characters.');
+        return;
+    }
+
+    saveButton.textContent = 'Saving...';
+    saveButton.disabled = true;
+
+    try {
+        // 1. Find the user's document using their email
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', currentUser.email));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            // If user document is somehow missing, create a new one (emergency fallback)
+            await addDoc(collection(db, 'users'), {
+                 email: currentUser.email,
+                 username: newUsername,
+                 questmasterRatings: [],
+                 voyagerRatings: [],
+                 createdAt: serverTimestamp()
+            });
+            showSuccessMessage('User document was missing, but a new one was created with the new username!');
+        } else {
+             // 2. Update Firestore document (where the username is stored)
+            const userDocRef = snapshot.docs[0].ref;
+            await updateDoc(userDocRef, { username: newUsername });
+            showSuccessMessage('Profile updated successfully!');
+        }
+       
+
+        // 3. Update Local Storage for quick UI access
+        const userData = getUserDataFromStorage(currentUser.email);
+        userData.username = newUsername;
+        saveUserDataToStorage(currentUser.email, userData);
+        
+        // 4. Update the UI welcome message
+        document.getElementById('current-user').textContent = newUsername;
+        
+    } catch (error) {
+        console.error('Error saving profile changes:', error);
+        showErrorMessage('Failed to save changes. Please try again.');
+    } finally {
+        saveButton.textContent = originalText;
+        saveButton.disabled = false;
+    }
+}
+
+// =========================================================
+//  END: PROFILE UPDATE LOGIC
+// =========================================================
 
 async function handleLogOut() {
     try {
@@ -610,10 +702,39 @@ async function updateAuthUI(user) {
     }
 }
 
+// Fetches user data from Firestore and caches it in Local Storage
+async function getAndCacheUserData(email) {
+     try {
+        const q = query(collection(db, 'users'), where('email', '==', email));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            const userData = snapshot.docs[0].data();
+            saveUserDataToStorage(email, userData);
+            return userData;
+        }
+        // If not found in Firestore, return a default
+        return { username: email.split('@')[0], email: email, questmasterRatings: [], voyagerRatings: [] };
+    } catch (error) {
+        console.error('Error fetching user data from Firestore:', error);
+        return null;
+    }
+}
+
+
 async function updateWelcomeMessage(user) {
     try {
-        // Get user data from localStorage
-        const userData = getUserDataFromStorage(user.email);
+        // First try to get data from local storage (fastest)
+        let userData = getUserDataFromStorage(user.email);
+        
+        // If data is missing (e.g., first login, cache cleared), fetch from Firestore
+        if (!userData || !userData.username || userData.username === user.email.split('@')[0]) {
+            userData = await getAndCacheUserData(user.email);
+            if (!userData) {
+                // Fallback to email prefix if all else fails
+                document.getElementById('current-user').textContent = user.email.split('@')[0];
+                return;
+            }
+        }
         document.getElementById('current-user').textContent = userData.username;
     } catch (error) {
         console.error('Error fetching username for welcome message:', error);
@@ -626,13 +747,11 @@ function updateProfileDropdown(user) {
     try {
         // Get user data from localStorage
         const userData = getUserDataFromStorage(user.email);
-        
         // Update username field
         const usernameInput = document.getElementById('profile-username-input');
         if (usernameInput) {
             usernameInput.value = userData.username || user.email.split('@')[0];
         }
-        
         // Update email display
         const emailDisplay = document.getElementById('profile-email-display');
         if (emailDisplay) {
@@ -652,6 +771,7 @@ function updateProfileDropdown(user) {
     }
 }
 
+// Utility: Gets user data from local storage
 function getUserDataFromStorage(email) {
     try {
         const userData = localStorage.getItem(`user_${email}`);
@@ -659,23 +779,14 @@ function getUserDataFromStorage(email) {
             return JSON.parse(userData);
         }
         // Return default data if not found
-        return {
-            username: email.split('@')[0],
-            email: email,
-            questmasterRatings: [],
-            voyagerRatings: []
-        };
+        return { username: email.split('@')[0], email: email, questmasterRatings: [], voyagerRatings: [] };
     } catch (error) {
         console.error('Error reading user data from localStorage:', error);
-        return {
-            username: email.split('@')[0],
-            email: email,
-            questmasterRatings: [],
-            voyagerRatings: []
-        };
+        return { username: email.split('@')[0], email: email, questmasterRatings: [], voyagerRatings: [] };
     }
 }
 
+// Utility: Saves user data to local storage
 function saveUserDataToStorage(email, userData) {
     try {
         localStorage.setItem(`user_${email}`, JSON.stringify(userData));
@@ -686,18 +797,29 @@ function saveUserDataToStorage(email, userData) {
     }
 }
 
+// Utility: Fetches username from Firestore
 async function getUsernameByEmail(email) {
+    // 1. Try local storage first
+    const localData = getUserDataFromStorage(email);
+    if (localData && localData.username) {
+        return localData.username;
+    }
+
+    // 2. Fallback to Firestore
     try {
         const q = query(collection(db, 'users'), where('email', '==', email));
         const snapshot = await getDocs(q);
-        
         if (!snapshot.empty) {
-            return snapshot.docs[0].data().username;
+            const username = snapshot.docs[0].data().username;
+            // Cache in local storage for future calls
+            saveUserDataToStorage(email, snapshot.docs[0].data());
+            return username;
         }
-        return null;
+        // Fallback to email prefix if not found anywhere
+        return email.split('@')[0];
     } catch (error) {
         console.error('Error fetching username:', error);
-        return null;
+        return email.split('@')[0];
     }
 }
 
@@ -722,44 +844,43 @@ async function displayNotifications() {
     const notificationList = document.getElementById('notification-list');
     const notificationCount = document.getElementById('notification-count');
     const clearBtn = document.getElementById('clear-notifications');
-    
     if (!currentUser || !notificationList) return;
-    
+
     // Clean up existing listener
     if (notificationsUnsubscribe) {
         notificationsUnsubscribe();
     }
-    
+
     const q = query(collection(db, 'notifications'), where("user", "==", currentUser.email), orderBy('timestamp', 'desc'));
-    
     notificationsUnsubscribe = onSnapshot(q, (snapshot) => {
         notificationList.innerHTML = '';
         const unreadCount = snapshot.docs.filter(doc => !doc.data().read).length;
+
         // Update badge visibility
         if (unreadCount > 0) {
-        notificationCount.textContent = unreadCount;
+            notificationCount.textContent = unreadCount;
             notificationCount.style.display = 'flex';
         } else {
             notificationCount.textContent = '';
             notificationCount.style.display = 'none';
         }
+
         // Enable/disable Clear All
         if (clearBtn) clearBtn.disabled = snapshot.empty;
-        
+
         if (snapshot.empty) {
             notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
             return;
         }
-        
+
         snapshot.forEach(doc => {
             const notif = { id: doc.id, ...doc.data() };
             const notifElement = document.createElement('div');
             notifElement.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
             const timestamp = notif.timestamp ? new Date(notif.timestamp.seconds * 1000).toLocaleString() : 'Just now';
-            
             let actionButton = '';
             console.log('Processing notification:', notif); // Debug log
-            
+
             // Check if this is an application notification and we have the required data
             if (notif.type === 'application' && notif.taskId && notif.applicantEmail) {
                 actionButton = `<button class="assign-btn" data-task-id="${notif.taskId}" data-applicant="${notif.applicantEmail}" data-notification-id="${notif.id}">Assign Task</button>`;
@@ -781,14 +902,31 @@ async function displayNotifications() {
                 ${actionButton}
             `;
             
+            // Add direct event listener to assign button if it exists
+            const assignBtn = notifElement.querySelector('.assign-btn');
+            if (assignBtn) {
+                assignBtn.addEventListener('click', async (e) => {
+                    console.log('Direct assign button click!'); // Debug log
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const taskId = assignBtn.dataset.taskId;
+                    const applicantEmail = assignBtn.dataset.applicant;
+                    const notificationId = assignBtn.dataset.notificationId;
+                    console.log('Direct assign button data:', { taskId, applicantEmail, notificationId }); // Debug log
+                    await assignTask(taskId, applicantEmail, notificationId);
+                });
+            }
+
             notifElement.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('assign-btn') && !e.target.classList.contains('notif-close')) {
+                // Only mark as read if clicking on the notification itself, not buttons
+                if (!e.target.classList.contains('assign-btn') && !e.target.classList.contains('notif-close') && e.target.tagName !== 'BUTTON') {
                     markNotificationAsRead(notif.id);
                 }
             });
-            
+
             notificationList.appendChild(notifElement);
         });
+
     }, error => {
         console.error("Error fetching notifications:", error);
     });
@@ -808,7 +946,6 @@ async function clearAllNotifications() {
 
     const q = query(collection(db, 'notifications'), where("user", "==", currentUser.email));
     const snapshot = await getDocs(q);
-
     if (snapshot.empty) return;
 
     const batch = writeBatch(db);
@@ -816,590 +953,352 @@ async function clearAllNotifications() {
         batch.delete(doc.ref);
     });
     await batch.commit();
+    
     // Optimistically update UI
     const notificationList = document.getElementById('notification-list');
     const notificationCount = document.getElementById('notification-count');
     const clearBtn = document.getElementById('clear-notifications');
     if (notificationList) notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
-    if (notificationCount) { notificationCount.textContent = ''; notificationCount.style.display = 'none'; }
+    if (notificationCount) {
+        notificationCount.textContent = '';
+        notificationCount.style.display = 'none';
+    }
     if (clearBtn) clearBtn.disabled = true;
 }
 
 async function clearAllTasks() {
     try {
         console.log('Starting to clear all tasks...');
-        
         // Get all tasks
         const q = query(collection(db, 'tasks'));
         const snapshot = await getDocs(q);
-        
         if (snapshot.empty) {
             console.log('No tasks to clear');
             showSuccessMessage('No tasks found to clear');
             return;
         }
-        
         console.log(`Found ${snapshot.docs.length} tasks to delete`);
-        
+
         // Delete in batches (Firestore batch limit is 500)
         const batch = writeBatch(db);
         let batchCount = 0;
-        
         snapshot.docs.forEach(doc => {
             batch.delete(doc.ref);
             batchCount++;
             
-            // Commit batch when it reaches 500 operations
-            if (batchCount >= 500) {
+            // Commit batch if limit reached
+            if (batchCount % 499 === 0) {
                 batch.commit();
-                batchCount = 0;
+                batch = writeBatch(db); // Start new batch
             }
         });
         
-        // Commit remaining operations
-        if (batchCount > 0) {
-            await batch.commit();
-        }
-        
+        // Commit final batch
+        await batch.commit();
+
         console.log('All tasks cleared successfully');
-        showSuccessMessage(`Successfully cleared ${snapshot.docs.length} tasks`);
+        showSuccessMessage(`Cleared ${snapshot.docs.length} tasks.`);
         
     } catch (error) {
         console.error('Error clearing tasks:', error);
-        showErrorMessage('Failed to clear tasks. Please try again.');
+        showErrorMessage('Failed to clear tasks. Check console for details.');
     }
-}
-
-function togglePassword(inputId, icon) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.textContent = '🙈';
-    } else {
-        input.type = 'password';
-        icon.textContent = '👁️';
-    }
-}
-
-function renderStarRating(rating, containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    const stars = container.querySelectorAll('.star');
-    const textElement = container.querySelector('.rating-text');
-    
-    if (rating === 0) {
-        stars.forEach(star => {
-            star.textContent = '☆';
-            star.classList.remove('filled');
-            star.classList.add('empty');
-        });
-        textElement.textContent = 'No ratings yet';
-    } else {
-        const fullStars = Math.floor(rating);
-        const hasHalfStar = rating % 1 >= 0.5;
-        
-        stars.forEach((star, index) => {
-            if (index < fullStars) {
-                star.textContent = '⭐';
-                star.classList.add('filled');
-                star.classList.remove('empty');
-            } else if (index === fullStars && hasHalfStar) {
-                star.textContent = '⭐';
-                star.classList.add('filled');
-                star.classList.remove('empty');
-            } else {
-                star.textContent = '☆';
-                star.classList.remove('filled');
-                star.classList.add('empty');
-            }
-        });
-        
-        textElement.textContent = `${rating.toFixed(1)}/5.0`;
-    }
-}
-
-async function loadUserRatings() {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    
-    try {
-        const q = query(collection(db, 'users'), where('email', '==', currentUser.email));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-            const userData = snapshot.docs[0].data();
-            const questmasterRatings = userData.questmasterRatings || [];
-            const voyagerRatings = userData.voyagerRatings || [];
-            
-            const questmasterAverage = questmasterRatings.length > 0 
-                ? questmasterRatings.reduce((sum, rating) => sum + rating, 0) / questmasterRatings.length 
-                : 0;
-            const voyagerAverage = voyagerRatings.length > 0 
-                ? voyagerRatings.reduce((sum, rating) => sum + rating, 0) / voyagerRatings.length 
-                : 0;
-            
-            renderStarRating(questmasterAverage, 'questmaster-rating');
-            renderStarRating(voyagerAverage, 'voyager-rating');
-        }
-    } catch (error) {
-        console.error('Error loading user ratings:', error);
-    }
-}
-
-function showRatingModal() {
-    const modal = document.getElementById('rating-modal');
-    modal.classList.add('show');
-    loadUserRatings();
-}
-
-function hideRatingModal() {
-    const modal = document.getElementById('rating-modal');
-    modal.classList.remove('show');
-}
-
-async function addRatingToUser(userEmail, ratingType, rating) {
-    try {
-        const q = query(collection(db, 'users'), where('email', '==', userEmail));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-            const userDoc = snapshot.docs[0];
-            const userData = userDoc.data();
-            
-            const ratingsArray = ratingType === 'questmaster' ? 'questmasterRatings' : 'voyagerRatings';
-            const currentRatings = userData[ratingsArray] || [];
-            
-            await updateDoc(userDoc.ref, {
-                [ratingsArray]: [...currentRatings, rating]
-            });
-            
-            console.log(`Added ${ratingType} rating ${rating} to user ${userEmail}`);
-        }
-    } catch (error) {
-        console.error('Error adding rating to user:', error);
-    }
-}
-
-async function testRating(userEmail, ratingType, rating) {
-    await addRatingToUser(userEmail, ratingType, rating);
-    console.log(`Test: Added ${ratingType} rating ${rating} to ${userEmail}`);
 }
 
 async function assignTask(taskId, applicantEmail, notificationId) {
     const currentUser = auth.currentUser;
-    if (!currentUser) {
-        showErrorMessage('Please sign in to assign tasks');
-        return;
-    }
+    if (!currentUser) return;
 
     try {
-        // Get task details
         const taskRef = doc(db, 'tasks', taskId);
         const taskDoc = await getDoc(taskRef);
-        
-        if (!taskDoc.exists()) {
-            showErrorMessage('Task not found');
+
+        if (!taskDoc.exists() || taskDoc.data().status !== 'open') {
+            showErrorMessage('Task no longer exists or is closed.');
             return;
         }
-        
-        const task = taskDoc.data();
-        
-        // Verify the current user is the task creator
-        if (task.creator !== currentUser.email) {
-            showErrorMessage('Only the task creator can assign tasks');
-            return;
-        }
-        
-        // Check if task is already assigned
-        if (task.status === 'closed' && task.assignedTo) {
-            showErrorMessage('This task has already been assigned');
-            return;
-        }
-        
-        // Update task with assigned user and status
-        await updateDoc(taskRef, {
-            assignedTo: applicantEmail,
-            status: 'closed', // Mark as closed to remove from available tasks
-            assignedAt: serverTimestamp()
+
+        const batch = writeBatch(db);
+
+        // 1. Update task status and assigned user
+        batch.update(taskRef, {
+            status: 'closed',
+            assignedTo: applicantEmail
         });
-        
-        // Send notification to the assigned user
-        await sendNotification(applicantEmail, `Congratulations! You have been assigned the task: "${task.title}". Reward: ₹${task.reward}`);
-        
-        // Mark the notification as read
-        await markNotificationAsRead(notificationId);
-        
-        // Send notification to task creator
-        await sendNotification(currentUser.email, `Task "${task.title}" has been assigned to ${applicantEmail}`);
-        
-        showSuccessMessage(`Task assigned to ${applicantEmail} successfully!`);
-        
-        // Close notification panel
-        hideNotificationPanel();
-        
-    } catch (error) {
-        console.error('Error assigning task:', error);
-        if (error.code === 'permission-denied') {
-            showErrorMessage('Permission denied. Please check your account status.');
-        } else if (error.code === 'unavailable') {
-            showErrorMessage('Service temporarily unavailable. Please try again later.');
-        } else {
-            showErrorMessage('Failed to assign task. Please try again.');
-        }
-    }
-}
 
-
-function showNotificationPanel() {
-    const panel = document.getElementById('notification-panel');
-    const overlay = document.getElementById('notification-overlay');
-    // ensure visible via style in addition to class for robustness
-    panel.style.display = 'block';
-    panel.classList.add('show');
-    overlay.classList.add('show');
-}
-
-// Debug function to test notification display
-async function createTestNotification() {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-        console.log("No user logged in");
-        return;
-    }
-    
-    try {
-        // Create a test notification with assign button in the database
-        await addDoc(collection(db, 'notifications'), {
-            user: currentUser.email,
-            message: "test@iitj.ac.in has applied to your task: \"Test Task\"",
+        // 2. Send success notification to the applicant (Voyager)
+        const taskTitle = taskDoc.data().title;
+        const applicantUsername = await getUsernameByEmail(applicantEmail) || applicantEmail.split('@')[0];
+        
+        batch.set(doc(collection(db, 'notifications')), {
+            user: applicantEmail,
+            message: `🎉 Congratulations ${applicantUsername}! You have been assigned the task: "${taskTitle}".`,
             timestamp: serverTimestamp(),
             read: false,
-            taskId: "test-task-id",
-            applicantEmail: "test@iitj.ac.in",
-            type: "application"
+            taskId: taskId,
+            type: 'assignment'
         });
-        
-        console.log("Test notification created and added to database");
-        showSuccessMessage("Test notification created! Check your notifications.");
-    } catch (error) {
-        console.error("Error creating test notification:", error);
-        showErrorMessage("Failed to create test notification");
-    }
-}
 
-function hideNotificationPanel() {
-    const panel = document.getElementById('notification-panel');
-    const overlay = document.getElementById('notification-overlay');
-    panel.classList.remove('show');
-    overlay.classList.remove('show');
-    panel.style.display = 'none';
-}
+        // 3. Delete the notification that triggered the assignment
+        const notifRef = doc(db, 'notifications', notificationId);
+        batch.delete(notifRef);
+        
+        // 4. Send rejection notifications to all other applicants
+        const taskData = taskDoc.data();
+        const rejectedApplicants = (taskData.applicants || []).filter(email => email !== applicantEmail);
+        const rejectionMessage = `Your application for the task: "${taskTitle}" was not selected. The task has been assigned to another user.`;
 
-// Character counting functionality
-function setupCharacterCounters() {
-    const titleInput = document.getElementById('task-title');
-    const descInput = document.getElementById('description');
-    const titleCount = document.getElementById('title-count');
-    const descCount = document.getElementById('desc-count');
-    
-    function updateCharCount(input, counter, max) {
-        const count = input.value.length;
-        counter.textContent = `${count}/${max} characters`;
-        
-        // Update styling based on usage
-        counter.classList.remove('warning', 'error');
-        if (count > max * 0.8) {
-            counter.classList.add('warning');
-        }
-        if (count > max * 0.95) {
-            counter.classList.add('error');
-        }
-    }
-    
-    if (titleInput && titleCount) {
-        const debouncedUpdate = debounce(() => updateCharCount(titleInput, titleCount, 100), 100);
-        titleInput.addEventListener('input', debouncedUpdate);
-    }
-    
-    if (descInput && descCount) {
-        const debouncedUpdate = debounce(() => updateCharCount(descInput, descCount, 500), 100);
-        descInput.addEventListener('input', debouncedUpdate);
-    }
-}
-
-function handleSaveProfileChanges() {
-    try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-            showErrorMessage('No user logged in');
-            return;
-        }
-        
-        const usernameInput = document.getElementById('profile-username-input');
-        if (!usernameInput) {
-            showErrorMessage('Username input not found');
-            return;
-        }
-        
-        const newUsername = usernameInput.value.trim();
-        if (!newUsername) {
-            showErrorMessage('Username cannot be empty');
-            return;
-        }
-        
-        if (newUsername.length < 3) {
-            showErrorMessage('Username must be at least 3 characters long');
-            return;
-        }
-        
-        // Get current user data
-        const userData = getUserDataFromStorage(currentUser.email);
-        
-        // Update username
-        userData.username = newUsername;
-        
-        // Save to localStorage
-        const success = saveUserDataToStorage(currentUser.email, userData);
-        
-        if (success) {
-            // Update welcome message
-            document.getElementById('current-user').textContent = newUsername;
-            showSuccessMessage('Username updated successfully!');
-        } else {
-            showErrorMessage('Failed to save username');
-        }
-        
-    } catch (error) {
-        console.error('Error saving profile changes:', error);
-        showErrorMessage('An error occurred while saving changes');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Hide the task form container on page load
-    const taskFormContainer = document.getElementById('newTaskFormContainer');
-    if (taskFormContainer) {
-        taskFormContainer.style.display = 'none';
-    }
-    
-    document.getElementById('task-form').addEventListener('submit', handleFormSubmit);
-    
-    // Cancel task button functionality
-    const cancelTaskBtn = document.getElementById('cancel-task-btn');
-    if (cancelTaskBtn) {
-        cancelTaskBtn.addEventListener('click', function() {
-            const taskFormContainer = document.getElementById('newTaskFormContainer');
-            const mainContent = document.getElementById('main-content');
-            if (taskFormContainer && mainContent) {
-                taskFormContainer.style.display = 'none';
-                mainContent.classList.remove('form-visible'); // Remove class for layout adjustment
-                // Reset the form when canceling
-                document.getElementById('task-form').reset();
-            }
-        });
-    }
-    
-    // Set minimum date for deadline date input (today)
-    const deadlineDateInput = document.getElementById('deadline-date');
-    if (deadlineDateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        deadlineDateInput.min = today;
-    }
-    
-    document.getElementById('signin-btn').addEventListener('click', handleLogIn);
-    
-    // Add Enter key functionality to sign-in form
-    const signinForm = document.getElementById('signin-form');
-    if (signinForm) {
-        signinForm.addEventListener('keydown', function(event) {
-            if (event.key === 'Enter' || event.keyCode === 13) {
-                event.preventDefault(); // Prevent form submission
-                handleLogIn(); // Trigger sign-in
-            }
-        });
-    }
-    
-    document.getElementById('signup-btn').addEventListener('click', handleSignUp);
-    
-    // Add Enter key functionality to sign-up form
-    const signupForm = document.getElementById('signup-form');
-    if (signupForm) {
-        signupForm.addEventListener('keydown', function(event) {
-            if (event.key === 'Enter' || event.keyCode === 13) {
-                event.preventDefault(); // Prevent form submission
-                handleSignUp(); // Trigger sign-up
-            }
-        });
-    }
-    document.getElementById('signout-btn').addEventListener('click', handleLogOut);
-    
-    // Navigation dropdown functionality
-    const postTaskBtn = document.getElementById('post-task-btn');
-    const postTaskSubmenu = document.getElementById('post-task-submenu');
-    const navItem = document.querySelector('.nav-item');
-    
-    if (postTaskBtn && postTaskSubmenu && navItem) {
-        postTaskBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            postTaskSubmenu.classList.toggle('show');
-            navItem.classList.toggle('active');
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!postTaskBtn.contains(e.target) && !postTaskSubmenu.contains(e.target)) {
-                postTaskSubmenu.classList.remove('show');
-                navItem.classList.remove('active');
-            }
-        });
-        
-        // Handle submenu item clicks
-        const submenuItems = postTaskSubmenu.querySelectorAll('.submenu-item');
-        submenuItems.forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                const itemId = this.id;
-                
-                // Handle different submenu actions
-                switch(itemId) {
-                    case 'new-task-item':
-                        // Show the task creation form
-                        const taskFormContainer = document.getElementById('newTaskFormContainer');
-                        const mainContent = document.getElementById('main-content');
-                        if (taskFormContainer && mainContent) {
-                            console.log("Button clicked, attempting to show form");
-                            taskFormContainer.style.display = 'block';
-                            mainContent.classList.add('form-visible'); // Add class for layout adjustment
-                            // Scroll to the form for better UX
-                            taskFormContainer.scrollIntoView({ behavior: 'smooth' });
-                        }
-                        break;
-                    case 'task-templates-item':
-                        showSuccessMessage('Task Templates feature coming soon!');
-                        break;
-                    case 'my-tasks-item':
-                        showSuccessMessage('My Tasks feature coming soon!');
-                        break;
-                    case 'task-history-item':
-                        showSuccessMessage('Task History feature coming soon!');
-                        break;
-                    case 'view-drafts-item':
-                        showSuccessMessage('View Drafts feature coming soon!');
-                        break;
-                }
-                
-                // Close dropdown after action
-                postTaskSubmenu.classList.remove('show');
-                navItem.classList.remove('active');
+        rejectedApplicants.forEach(rejectedEmail => {
+            batch.set(doc(collection(db, 'notifications')), {
+                user: rejectedEmail,
+                message: rejectionMessage,
+                timestamp: serverTimestamp(),
+                read: false,
+                taskId: taskId,
+                type: 'rejection'
             });
         });
+
+        await batch.commit();
+        showSuccessMessage(`Task successfully assigned to ${applicantUsername}!`);
+
+    } catch (error) {
+        console.error('Error assigning task:', error);
+        showErrorMessage('Failed to assign task. Please try again.');
     }
-    
-    document.getElementById('signin-toggle').addEventListener('click', showSignInForm);
-    document.getElementById('signup-toggle').addEventListener('click', showSignUpForm);
-    // Bell icon toggle functionality
-    document.getElementById('bell-icon').addEventListener('click', function() {
-        const panel = document.getElementById('notification-panel');
-        const overlay = document.getElementById('notification-overlay');
+}
+
+// Function to calculate and display user rating (from previous context, kept for completeness)
+async function updateRatingDisplay(email, ratingType) {
+    const ratingElementId = ratingType === 'questmaster' ? 'questmaster-rating' : 'voyager-rating';
+    const ratingTextId = ratingType === 'questmaster' ? 'questmaster-rating-text' : 'voyager-rating-text';
+    const ratingsArrayName = ratingType === 'questmaster' ? 'questmasterRatings' : 'voyagerRatings';
+
+    const ratingElement = document.getElementById(ratingElementId);
+    const ratingTextElement = document.getElementById(ratingTextId);
+
+    if (!ratingElement || !ratingTextElement) return;
+
+    try {
+        const q = query(collection(db, 'users'), where('email', '==', email));
+        const snapshot = await getDocs(q);
         
-        if (panel.classList.contains('show')) {
-            // Hide panel
-            panel.classList.remove('show');
-            overlay.classList.remove('show');
-            panel.style.display = 'none';
-        } else {
-            // Show panel
-            panel.classList.add('show');
-            overlay.classList.add('show');
-            panel.style.display = 'block';
+        if (snapshot.empty) {
+            ratingTextElement.textContent = 'User not found.';
+            return;
         }
-    });
-    
-    // Global functions for onclick handlers
-    window.closeNotificationPanel = function() {
-        console.log('Close button clicked via onclick!');
-        const panel = document.getElementById('notification-panel');
-        const overlay = document.getElementById('notification-overlay');
-        panel.classList.remove('show');
-        overlay.classList.remove('show');
-        panel.style.display = 'none';
-    };
-    
-    window.clearAllAndClose = function() {
-        console.log('Clear All button clicked via onclick!');
-        // Empty the notification list
-        const notificationList = document.getElementById('notification-list');
-        notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+
+        const userData = snapshot.docs[0].data();
+        const ratings = userData[ratingsArrayName] || [];
+
+        if (ratings.length === 0) {
+            ratingElement.querySelector('.stars').innerHTML = '<span class="star empty">☆</span><span class="star empty">☆</span><span class="star empty">☆</span><span class="star empty">☆</span><span class="star empty">☆</span>';
+            ratingTextElement.textContent = 'No ratings yet';
+            return;
+        }
+
+        const totalRating = ratings.reduce((sum, rating) => sum + rating, 0);
+        const averageRating = totalRating / ratings.length;
+        const roundedRating = Math.round(averageRating * 2) / 2; // Round to nearest 0.5
+
+        const starsContainer = ratingElement.querySelector('.stars');
+        starsContainer.innerHTML = '';
+
+        for (let i = 1; i <= 5; i++) {
+            const star = document.createElement('span');
+            star.className = 'star';
+            if (roundedRating >= i) {
+                star.textContent = '★'; // Full star
+            } else if (roundedRating === i - 0.5) {
+                star.textContent = '½'; // Half star (using a simple half character)
+            } else {
+                star.textContent = '☆'; // Empty star
+                star.classList.add('empty');
+            }
+            starsContainer.appendChild(star);
+        }
+
+        ratingTextElement.textContent = `${roundedRating.toFixed(1)}/5.0 (${ratings.length} rating${ratings.length !== 1 ? 's' : ''})`;
+
+    } catch (error) {
+        console.error(`Error updating ${ratingType} rating display:`, error);
+        ratingTextElement.textContent = 'Error loading rating.';
+    }
+}
+
+function showRatingModal() {
+    const ratingModal = document.getElementById('rating-modal');
+    const currentUser = auth.currentUser;
+    if (!ratingModal || !currentUser) return;
+
+    // Update the ratings when the modal is shown
+    updateRatingDisplay(currentUser.email, 'questmaster');
+    updateRatingDisplay(currentUser.email, 'voyager');
+
+    ratingModal.style.display = 'flex';
+}
+
+function hideRatingModal() {
+    const ratingModal = document.getElementById('rating-modal');
+    if (ratingModal) ratingModal.style.display = 'none';
+}
+
+// Function to add a rating to a user (for testing or future use)
+async function addRatingToUser(email, rating, type) {
+    if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        console.error('Rating must be an integer between 1 and 5');
+        return;
+    }
+    const ratingsArrayName = type === 'questmaster' ? 'questmasterRatings' : 'voyagerRatings';
+
+    try {
+        const q = query(collection(db, 'users'), where('email', '==', email));
+        const snapshot = await getDocs(q);
         
-        // Clear from database
-        clearAllNotifications();
+        if (snapshot.empty) {
+            console.error('User not found to rate.');
+            return;
+        }
         
-        // Hide the panel
-        const panel = document.getElementById('notification-panel');
-        const overlay = document.getElementById('notification-overlay');
-        panel.classList.remove('show');
-        overlay.classList.remove('show');
-        panel.style.display = 'none';
-    };
-    
-    // Overlay click does nothing (only close button should close)
-    document.getElementById('notification-overlay').addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-    
-    // Profile dropdown functionality
+        const userDocRef = snapshot.docs[0].ref;
+        const userData = snapshot.docs[0].data();
+        
+        const currentRatings = userData[ratingsArrayName] || [];
+        const updatedRatings = [...currentRatings, rating];
+
+        await updateDoc(userDocRef, {
+            [ratingsArrayName]: updatedRatings
+        });
+
+        console.log(`Successfully added a ${rating} star rating as ${type} to ${email}`);
+        updateRatingDisplay(email, type); // Update display after adding rating
+
+    } catch (error) {
+        console.error(`Error adding rating as ${type}:`, error);
+    }
+}
+
+// Test function (for console use)
+function testRating() {
+    const testEmail = 'test@iitj.ac.in'; // Replace with a real user email for testing
+    addRatingToUser(testEmail, 5, 'questmaster');
+    addRatingToUser(testEmail, 4, 'voyager');
+}
+
+// =========================================================
+//  Event Listeners and DOM Manipulation
+// =========================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Corrected Sign-in and Sign-up form IDs in JS
+    const signinForm = document.getElementById('signin-form');
+    const signupForm = document.getElementById('signup-form');
+    const signinBtn = document.getElementById('signin-btn');
+    const signupBtn = document.getElementById('signup-btn');
+    const signoutBtn = document.getElementById('signout-btn');
+    const signinToggle = document.getElementById('signin-toggle');
+    const signupToggle = document.getElementById('signup-toggle');
+    const postTaskBtn = document.getElementById('post-task-btn'); // Corrected ID
+    const taskForm = document.getElementById('task-form');
+    const notificationBell = document.getElementById('notification-bell');
     const profileIcon = document.getElementById('profile-icon');
     const profileDropdown = document.getElementById('profile-dropdown');
+    const profileSave = document.getElementById('profile-save');
+    const profileRating = document.getElementById('profile-rating');
+    const ratingModal = document.getElementById('rating-modal');
+    const ratingModalClose = document.getElementById('rating-modal-close');
+
+    // Attach form submission handlers
+    if (signinBtn) {
+        signinBtn.addEventListener('click', handleLogIn);
+    }
+    if (signupBtn) {
+        signupBtn.addEventListener('click', handleSignUp);
+    }
+    if (signoutBtn) {
+        signoutBtn.addEventListener('click', handleLogOut);
+    }
     
-    if (profileIcon && profileDropdown) {
-        profileIcon.addEventListener('click', function(e) {
-            e.stopPropagation();
-            profileDropdown.classList.toggle('show');
+    // Auth toggle buttons
+    if (signinToggle) {
+        signinToggle.addEventListener('click', showSignInForm);
+    }
+    if (signupToggle) {
+        signupToggle.addEventListener('click', showSignUpForm);
+    }
+
+    // Task form display toggle
+    if (postTaskBtn) {
+        postTaskBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleTaskFormVisibility();
         });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!profileIcon.contains(e.target) && !profileDropdown.contains(e.target)) {
-                profileDropdown.classList.remove('show');
+    }
+    
+    // Attach listener to 'Create New Task' button in the submenu
+    const newTaskItem = document.getElementById('new-task-item');
+     if (newTaskItem) {
+        newTaskItem.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleTaskFormVisibility();
+        });
+    }
+
+
+    // Task form submission
+    if (taskForm) {
+        taskForm.addEventListener('submit', handleFormSubmit);
+    }
+
+    // Notification panel toggle
+    if (notificationBell) {
+        notificationBell.addEventListener('click', toggleNotificationPanel);
+    }
+
+    // Profile dropdown toggle
+    if (profileIcon) {
+        profileIcon.addEventListener('click', function() {
+            profileDropdown.classList.toggle('show');
+            document.getElementById('notification-panel').classList.remove('show');
+        });
+    }
+
+    // Hide profile dropdown on outside click
+    document.addEventListener('click', function(e) {
+        if (profileIcon && !profileIcon.contains(e.target) && profileDropdown && !profileDropdown.contains(e.target) && profileDropdown.classList.contains('show')) {
+            profileDropdown.classList.remove('show');
+        }
+    });
+
+    // Profile save button listener - NOW CALLS THE CORRECTLY DEFINED FUNCTION
+    if (profileSave) {
+        profileSave.addEventListener('click', function() {
+            handleSaveProfileChanges();
+            // Do NOT remove 'show' here, allow the user to see the saved state
+            // profileDropdown.classList.remove('show'); 
+        });
+    }
+    
+    // Rating modal functionality
+    
+    if (profileRating) {
+        profileRating.addEventListener('click', function() {
+            showRatingModal();
+            profileDropdown.classList.remove('show');
+        });
+    }
+    
+    if (ratingModalClose) {
+        ratingModalClose.addEventListener('click', hideRatingModal);
+    }
+    
+    // Close rating modal when clicking outside
+    if (ratingModal) {
+        ratingModal.addEventListener('click', function(e) {
+            if (e.target === ratingModal) {
+                hideRatingModal();
             }
         });
-        
-        // Save changes functionality
-        const profileSave = document.getElementById('profile-save');
-        if (profileSave) {
-            profileSave.addEventListener('click', function() {
-                handleSaveProfileChanges();
-                profileDropdown.classList.remove('show');
-            });
-        }
-        
-        // Rating modal functionality
-        const profileRating = document.getElementById('profile-rating');
-        const ratingModal = document.getElementById('rating-modal');
-        const ratingModalClose = document.getElementById('rating-modal-close');
-        
-        if (profileRating) {
-            profileRating.addEventListener('click', function() {
-                showRatingModal();
-                profileDropdown.classList.remove('show');
-            });
-        }
-        
-        if (ratingModalClose) {
-            ratingModalClose.addEventListener('click', hideRatingModal);
-        }
-        
-        // Close rating modal when clicking outside
-        if (ratingModal) {
-            ratingModal.addEventListener('click', function(e) {
-                if (e.target === ratingModal) {
-                    hideRatingModal();
-                }
-            });
-        }
     }
     
     setupCharacterCounters();
@@ -1410,4 +1309,97 @@ document.addEventListener('DOMContentLoaded', function() {
     window.togglePassword = togglePassword;
     window.addRatingToUser = addRatingToUser;
     window.testRating = testRating;
+    window.clearAllAndClose = clearAllAndClose;
+    window.closeNotificationPanel = closeNotificationPanel;
 });
+
+
+// Helper functions for UI/Toggles (from previous context, not modified)
+function toggleTaskFormVisibility() {
+    const taskFormContainer = document.getElementById('newTaskFormContainer');
+    const mainContent = document.getElementById('main-content');
+    if (taskFormContainer.style.display === 'block') {
+        taskFormContainer.style.display = 'none';
+        mainContent.classList.remove('form-visible');
+    } else {
+        taskFormContainer.style.display = 'block';
+        mainContent.classList.add('form-visible');
+    }
+}
+
+function toggleNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    panel.classList.toggle('show');
+    profileDropdown.classList.remove('show'); // Close profile dropdown when opening notifications
+    
+    // Mark all currently displayed notifications as read when panel is opened
+    const notificationList = document.getElementById('notification-list');
+    const unreadItems = notificationList.querySelectorAll('.unread');
+    unreadItems.forEach(item => {
+        const notifId = item.querySelector('.notif-close').dataset.notificationId;
+        if (notifId) {
+            markNotificationAsRead(notifId);
+        }
+    });
+}
+
+function closeNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    if (panel) panel.classList.remove('show');
+}
+
+function clearAllAndClose() {
+    clearAllNotifications();
+    closeNotificationPanel();
+}
+
+function createTestNotification() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        console.warn('Cannot create test notification, user not logged in.');
+        return;
+    }
+    sendNotification(currentUser.email, 'This is a test notification!');
+}
+
+function togglePassword(inputId, iconElement) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        iconElement.textContent = '🔒';
+    } else {
+        input.type = 'password';
+        iconElement.textContent = '👁️';
+    }
+}
+
+function setupCharacterCounters() {
+    const titleInput = document.getElementById('task-title');
+    const descriptionInput = document.getElementById('description');
+    const titleCounter = document.getElementById('title-char-count');
+    const descriptionCounter = document.getElementById('description-char-count');
+
+    const updateTitleCounter = debounce(() => {
+        if (titleInput && titleCounter) {
+            const currentLength = titleInput.value.length;
+            titleCounter.textContent = `${currentLength}/100`;
+            titleCounter.style.color = currentLength > 100 ? 'var(--color-accent-red)' : 'var(--color-text-medium)';
+        }
+    }, 100);
+
+    const updateDescriptionCounter = debounce(() => {
+        if (descriptionInput && descriptionCounter) {
+            const currentLength = descriptionInput.value.length;
+            descriptionCounter.textContent = `${currentLength}/500`;
+            descriptionCounter.style.color = currentLength > 500 ? 'var(--color-accent-red)' : 'var(--color-text-medium)';
+        }
+    }, 100);
+
+    if (titleInput) {
+        titleInput.addEventListener('input', updateTitleCounter);
+    }
+    if (descriptionInput) {
+        descriptionInput.addEventListener('input', updateDescriptionCounter);
+    }
+}
