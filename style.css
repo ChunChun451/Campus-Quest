@@ -1,16 +1,16 @@
-/* Reset and base styles */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Custom cursor class */
+
 .torch-cursor {
     cursor: auto !important;
 }
 
-/* Default body styles */
+
 body {
     font-family: 'Cinzel', serif;
     line-height: 1.6;
@@ -20,7 +20,7 @@ body {
     background: url('tavern.jpg?v=1') no-repeat center center/cover fixed;
 }
 
-/* Landing page styles */
+
 body.landing-body {
     height: 100vh;
     background: url('landing.jpg.jpeg') no-repeat center center/cover;
@@ -28,7 +28,7 @@ body.landing-body {
     position: relative;
 }
 
-/* Custom cursor styles */
+
 .custom-cursor {
     width: 32px;
     height: 32px;
@@ -40,10 +40,10 @@ body.landing-body {
     transform: translate(-50%, -50%);
     transition: transform 0.1s ease;
     will-change: transform;
-    display: none; /* Keep system cursor visible */
+    display: none; 
 }
 
-/* Auth page styles */
+
 body.auth-body {
     color: #f3e9d2;
     background: url('tavern.jpg?v=1') no-repeat center center/cover fixed;
@@ -53,7 +53,7 @@ body.auth-body {
 
 
 
-/* Add animated background particles */
+
 body::before {
     content: '';
     position: fixed;
@@ -65,17 +65,17 @@ body::before {
     z-index: -1;
 }
 
-/* Task History Styles */
+
 .task-history-container {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
     display: none;
-    grid-column: 1 / -1; /* Span full width of main grid */
+    grid-column: 1 / -1; 
 }
 
-/* Side-by-side layout for Quest History columns */
+
 .task-history-columns {
     display: flex;
     gap: 2rem;
@@ -90,19 +90,19 @@ body::before {
 }
 
 .task-history-column {
-    /* ... other styles ... */
-    padding: 2.5rem 4rem 2.75rem 4rem; /* INCREASED HORIZONTAL PADDING for better scroll alignment */
-    /* ... other styles ... */
+    
+    padding: 2.5rem 4rem 2.75rem 4rem; 
+    
 
 }
 
 .task-history-column {
     background: url('scroll.png') no-repeat center center/100% 100%;
-    max-width: 800px; /* 🔑 Change: INCREASE MAX-WIDTH */
-    width: 100%; /* Ensure it's responsive up to max-width */
-    height: 600px; /* 🔑 Change: SET A FIXED HEIGHT (or larger min-height) */
-    padding: 0; /* We'll position inner scroll area with insets */
-    overflow: hidden; /* Clip overflowing content to avoid overlaying curled edges */
+    max-width: 800px; 
+    width: 100%; 
+    height: 600px; 
+    padding: 0; 
+    overflow: hidden; 
     position: relative;
 }
 
@@ -116,19 +116,19 @@ body::before {
 
 .task-history-list {
     position: absolute;
-    top: 4.5rem;   /* match visual parchment margins */
+    top: 4.5rem;   
     bottom: 3.25rem;
     left: 5rem;
     right: 5rem;
-    overflow-y: auto; /* Scroll only the inner content */
+    overflow-y: auto; 
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    padding-right: 0.25rem; /* room for scrollbar */
+    padding-right: 0.25rem; 
     overscroll-behavior: contain;
 }
 
-/* Ensure text stays within parchment bounds */
+
 .task-history-column, .task-history-column * {
     word-wrap: break-word;
     overflow-wrap: anywhere;
@@ -155,7 +155,7 @@ body::before {
 }
 
 .task-history-card {
-    background: transparent; /* Show parchment behind the items */
+    background: transparent; 
     border-radius: 0;
     padding: 0.5rem 0;
     border: none;
@@ -239,7 +239,7 @@ body::before {
     margin-top: 0.25rem;
 }
 
-/* Venue input styling */
+
 .task-venue {
     margin-bottom: 15px;
     position: relative;
@@ -339,7 +339,7 @@ body::before {
     background: rgba(76, 175, 80, 0.3);
 }
 
-/* Main content layout */
+
 #main-content {
     display: flex;
     justify-content: center;
@@ -349,7 +349,7 @@ body::before {
     position: relative;
 }
 
-/* Task list container */
+
 .task-list-container {
     width: 100%;
     max-width: 1200px;
@@ -366,7 +366,7 @@ body::before {
     pointer-events: none;
 }
 
-/* Task form container */
+
 .task-form-container {
     background: rgba(60, 40, 25, 0.96);
     border-radius: 15px;
@@ -394,7 +394,7 @@ body::before {
     transform: translate(-50%, -50%) scale(1);
 }
 
-/* Scrollbar styling for the form container */
+
 .task-form-container::-webkit-scrollbar {
     width: 8px;
 }
@@ -413,14 +413,14 @@ body::before {
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Form content spacing */
+
 .task-form-container form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-/* Overlay for modal background */
+
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -439,7 +439,7 @@ body::before {
     visibility: visible;
 }
 
-/* Dropdown menu */
+
 .nav-submenu {
     opacity: 0;
     visibility: hidden;
@@ -464,7 +464,7 @@ body::before {
     }
 }
 
-/* Z-index hierarchy */
+
 :root {
     --z-background: 1;
     --z-content: 50;
@@ -475,7 +475,7 @@ body::before {
     --z-notification: 400;
 }
 
-/* Header styling */
+
 header {
     background: linear-gradient(135deg, rgba(34,20,10,0.78) 0%, rgba(34,20,10,0.78) 50%, rgba(34,20,10,0.78) 100%), url('battle.gif') center/cover no-repeat;
     color: #fff8dc;
@@ -488,7 +488,7 @@ header {
     z-index: var(--z-header);
 }
 
-/* Navigation and dropdown styles */
+
 .main-nav {
     position: relative;
     z-index: var(--z-header);
@@ -534,7 +534,7 @@ header h1 {
     letter-spacing: 1px;
 }
 
-/* Make title link look like plain heading */
+
 header h1 .home-link {
     color: inherit;
     text-decoration: none;
@@ -545,7 +545,7 @@ header h1 .home-link:focus-visible {
     border-radius: 4px;
 }
 
-/* Header controls */
+
 .header-controls {
     position: absolute;
     top: 20px;
@@ -567,7 +567,7 @@ header h1 .home-link:focus-visible {
     font-weight: 500;
 }
 
-/* Landing page button */
+
 .proceed-btn {
     position: absolute;
     bottom: 40px;
@@ -613,7 +613,7 @@ header h1 .home-link:focus-visible {
         inset 0 0 15px rgba(139, 69, 19, 0.8);
 }
 
-/* Main Navigation */
+
 .main-nav {
     display: flex;
     justify-content: center;
@@ -730,7 +730,7 @@ header h1 .home-link:focus-visible {
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Sign-in Modal */
+
 .signin-modal {
     position: fixed;
     top: 0;
@@ -741,7 +741,7 @@ header h1 .home-link:focus-visible {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000; /* Lower than notification panel */
+    z-index: 1000; 
     backdrop-filter: blur(10px);
 }
 
@@ -799,7 +799,7 @@ header h1 .home-link:focus-visible {
     display: none !important;
 }
 
-/* Add extra space before buttons */
+
 .signin-form button {
     margin-top: 0.3rem;
 }
@@ -848,7 +848,7 @@ header h1 .home-link:focus-visible {
     backdrop-filter: blur(10px);
 }
 
-/* Toggle buttons */
+
 .auth-toggle {
     display: flex;
     margin-bottom: 2rem;
@@ -904,14 +904,14 @@ header h1 .home-link:focus-visible {
     box-shadow: 0 6px 20px rgba(139, 69, 19, 0.4);
 }
 
-/* Password container styling */
+
 .password-container {
     position: relative;
     width: 100%;
 }
 
 .password-container input {
-    padding-right: 40px; /* Make room for the eye icon */
+    padding-right: 40px; 
 }
 
 .toggle-password {
@@ -931,7 +931,7 @@ header h1 .home-link:focus-visible {
     color: #495057;
 }
 
-/* Profile container styling */
+
 .profile-container {
     position: relative;
     display: flex;
@@ -1104,7 +1104,7 @@ header h1 .home-link:focus-visible {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-/* Rating Modal */
+
 .rating-modal {
     position: fixed;
     top: 0;
@@ -1211,7 +1211,7 @@ header h1 .home-link:focus-visible {
 
 .star {
     font-size: 1.5rem;
-    color: #ffd166; /* warm gold */
+    color: #ffd166; 
     transition: all 0.3s ease;
 }
 
@@ -1229,7 +1229,7 @@ header h1 .home-link:focus-visible {
     font-weight: 500;
 }
 
-/* Responsive design for rating modal */
+
 @media (max-width: 768px) {
     .rating-sections {
         flex-direction: column;
@@ -1245,7 +1245,7 @@ header h1 .home-link:focus-visible {
         padding: 1rem;
     }
     
-    /* Mobile navigation adjustments */
+    
     .main-nav {
         margin: 0.5rem 0;
     }
@@ -1266,7 +1266,7 @@ header h1 .home-link:focus-visible {
     }
 }
 
-/* Notification bell styling */
+
 .notification-bell {
     position: relative;
 }
@@ -1302,7 +1302,7 @@ header h1 .home-link:focus-visible {
     min-width: 20px;
 }
 
-/* Notification Panel */
+
 .notification-panel {
     position: fixed !important;
     top: 0 !important;
@@ -1311,7 +1311,7 @@ header h1 .home-link:focus-visible {
     height: 100vh;
     background: linear-gradient(180deg, rgba(34,20,10,0.96), rgba(74,32,14,0.96));
     box-shadow: -5px 0 25px rgba(0, 0, 0, 0.4);
-    z-index: 999999 !important; /* High but not maximum to avoid conflicts */
+    z-index: 999999 !important; 
     transition: right 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -1321,7 +1321,7 @@ header h1 .home-link:focus-visible {
     overflow: hidden;
 }
 
-/* animated fire glow overlay */
+
 .notification-panel::before {
     content: '';
     position: absolute;
@@ -1434,10 +1434,10 @@ header h1 .home-link:focus-visible {
     cursor: pointer;
     position: relative;
     background: rgba(80,55,35,0.35);
-    color: #f3e9d2; /* default light text */
+    color: #f3e9d2; 
 }
 
-/* Per-notification close button */
+
 .notification-item .notif-close {
     position: absolute;
     top: 8px;
@@ -1476,13 +1476,13 @@ header h1 .home-link:focus-visible {
 
 .notification-item p {
     margin: 0 0 0.5rem 0;
-    color: #ffffff; /* make primary message white */
+    color: #ffffff; 
     font-size: 0.9rem;
     line-height: 1.4;
 }
 
 .notification-item small {
-    color: rgba(255,255,255,0.8); /* light timestamp */
+    color: rgba(255,255,255,0.8); 
     font-size: 0.8rem;
 }
 
@@ -1524,26 +1524,26 @@ header h1 .home-link:focus-visible {
     margin-top: 2rem;
 }
 
-/* Overlay for notification panel */
+
 .notification-overlay {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    background: transparent !important; /* No dimming effect - completely transparent */
-    z-index: 999998 !important; /* Lower than panel */
+    background: transparent !important; 
+    z-index: 999998 !important; 
     opacity: 0;
-    pointer-events: none !important; /* Never block clicks */
+    pointer-events: none !important; 
     transition: opacity 0.3s ease;
 }
 
 .notification-overlay.show {
     opacity: 1;
-    pointer-events: none !important; /* Still never block clicks */
+    pointer-events: none !important; 
 }
 
-/* Main layout */
+
 main {
     max-width: 1200px;
     margin: 0 auto;
@@ -1554,16 +1554,16 @@ main {
     align-items: start;
 }
 
-/* Form container styling */
+
 #newTaskFormContainer {
-    display: none; /* Hidden by default */
+    display: none; 
 }
 
 #newTaskFormContainer.show {
-    display: block; /* Show when requested */
+    display: block; 
 }
 
-/* Form actions styling */
+
 .form-actions {
     display: flex;
     gap: 1rem;
@@ -1588,7 +1588,7 @@ main {
     transform: translateY(-1px);
 }
 
-/* Form styling */
+
 .task-form {
     background: rgba(60, 40, 25, 0.9);
     padding: 2rem;
@@ -1639,7 +1639,7 @@ main {
     backdrop-filter: blur(10px);
 }
 
-/* Specific styling for date and time inputs */
+
 .form-group input[type="date"],
 .form-group input[type="time"] {
     color-scheme: dark;
@@ -1688,7 +1688,7 @@ main {
     font-style: italic;
 }
 
-/* Button styling */
+
 button[type="submit"] {
     background: linear-gradient(135deg, #b88a4a 0%, #a3752f 100%);
     color: #2b1b0a;
@@ -1731,8 +1731,8 @@ button[type="submit"]:active {
     transform: translateY(-1px);
 }
 
-/* Task list container */
-/* Task list container - full width when form is hidden */
+
+
 .task-list-container {
     background: transparent;
     padding: 0;
@@ -1741,10 +1741,10 @@ button[type="submit"]:active {
     border: none;
     color: #1c140a;
     transition: all 0.3s ease;
-    grid-column: 1 / -1; /* Span full width by default */
+    grid-column: 1 / -1; 
 }
 
-/* When task form is visible, adjust task list to second column */
+
 main.form-visible .task-list-container {
     grid-column: 2;
 }
@@ -1776,7 +1776,7 @@ main.form-visible .task-list-container {
     gap: 0.25rem;
 }
 
-/* Task card styling */
+
 .task-list {
     display: grid;
     gap: 2.5rem;
@@ -1784,19 +1784,19 @@ main.form-visible .task-list-container {
     padding: 0 1rem;
 }
 
-/* show/hide the available title dynamically */
+
 .task-list-container .task-list:empty ~ #available-title { display: none; }
-/* center and enlarge available quests banner when tasks present */
+
 #available-title { display: flex; justify-content: center; margin-bottom: 0.5rem; }
 #available-title .title-img { max-height: 200px; }
 
-/* Ensure all text inside parchment scrolls is black for readability */
+
 .task-list, .task-card, .task-card *,
 .task-history-column, .task-history-column * {
     color: #000000 !important;
 }
 
-/* Remove inner white bar defaults (empty state block) */
+
 .task-list:empty::after {
     color: #000000;
     background: transparent;
@@ -1864,7 +1864,7 @@ main.form-visible .task-list-container {
     padding: 0 !important;
 }
 
-/* Incentive tier badges */
+
 .tier-badge {
     display: inline-flex;
     align-items: center;
@@ -2006,7 +2006,7 @@ main.form-visible .task-list-container {
     transform: translateY(0);
 }
 
-/* Responsive design */
+
 @media (max-width: 768px) {
     main {
         grid-template-columns: 1fr;
@@ -2113,10 +2113,10 @@ main.form-visible .task-list-container {
     }
 }
 
-/* Empty state */
+
 .task-list:empty::after { content: ""; display: none; }
 
-/* Success and Error message styling */
+
 .success-message, .error-message {
     position: fixed;
     top: 20px;
@@ -2149,7 +2149,7 @@ main.form-visible .task-list-container {
     opacity: 1;
 }
 
-/* Error message styling */
+
 .error {
     background: rgba(220, 53, 69, 0.2);
     color: #ff6b6b;

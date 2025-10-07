@@ -1,4 +1,4 @@
-// Import Firebase functions
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import { 
@@ -27,14 +27,14 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { firebaseConfig } from './firebase-config.js';
 
-// Initialize Firebase
+
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Add event listeners for task form visibility
-// Function to display task history
+
+
 async function displayTaskHistory() {
     const user = auth.currentUser;
     if (!user) {
@@ -52,37 +52,37 @@ async function displayTaskHistory() {
         return;
     }
 
-    // Hide task list and show history
+    
     taskListContainer.style.display = 'none';
     taskHistoryContainer.style.display = 'block';
 
-    // Clear previous content
-    // Show zero-state immediately instead of loading spinners
+    
+    
     questmasterHistory.innerHTML = '<div class="no-tasks">No quests posted yet</div>';
     voyagerHistory.innerHTML = '<div class="no-tasks">No quests assigned yet</div>';
 
     try {
-        // Set up realtime listener for tasks created by the user (Questmaster)
-        // Avoid orderBy to include legacy docs without createdAt
+        
+        
         const questmasterQuery = query(
             collection(db, 'tasks'),
             where('creator', '==', user.email)
         );
 
-        // Set up realtime listener for tasks assigned to the user (Voyager)
+        
         const voyagerQuery = query(
             collection(db, 'tasks'),
             where('assignedTo', '==', user.email)
         );
 
-        // Set up realtime listeners
+        
         const unsubscribeQuestmaster = onSnapshot(questmasterQuery, (snapshot) => {
             questmasterHistory.innerHTML = '';
             if (snapshot.empty) {
                 questmasterHistory.innerHTML = '<div class="no-tasks">No quests posted yet</div>';
             } else {
                 const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                // Client-side sort by createdAt if present
+                
                 items.sort((a,b) => {
                     const da = parseAnyDate(a.createdAt);
                     const db = parseAnyDate(b.createdAt);
@@ -119,7 +119,7 @@ async function displayTaskHistory() {
             voyagerHistory.innerHTML = '<div class="no-tasks">No quests assigned yet</div>';
         });
 
-        // Clean up listeners when navigating away
+        
         return () => {
             unsubscribeQuestmaster();
             unsubscribeVoyager();
@@ -131,7 +131,7 @@ async function displayTaskHistory() {
     }
 }
 
-// Helper function to create task history cards
+
 function createHistoryCard(task, type) {
     const card = document.createElement('div');
     card.className = 'task-history-card';
@@ -156,7 +156,7 @@ function createHistoryCard(task, type) {
     const dueObj = parseAnyDate(task.dueDate || task.deadline);
     const dueDate = dueObj ? dueObj.toLocaleDateString() : 'No due date';
     
-    // Remove edit capability as requested
+    
     const canEdit = false;
     const canDelete = type === 'questmaster';
         
@@ -187,7 +187,7 @@ function createHistoryCard(task, type) {
         </div>
     `;
 
-    // Add event listeners for the delete button
+    
     if (canDelete) {
         const deleteBtn = card.querySelector('.delete-btn');
         deleteBtn.addEventListener('click', () => handleDeleteTask(task, card));
@@ -201,7 +201,7 @@ function createHistoryCard(task, type) {
     return card;
 }
 
-// Handle dropdown visibility
+
 function handleDropdown(show = false) {
     const submenu = document.getElementById('post-task-submenu');
     if (submenu) {
@@ -213,7 +213,7 @@ function handleDropdown(show = false) {
     }
 }
 
-// Toggle form visibility with overlay
+
 function toggleTaskForm(show = false) {
     const taskFormContainer = document.getElementById('newTaskFormContainer');
     const taskListContainer = document.querySelector('.task-list-container');
@@ -225,12 +225,12 @@ function toggleTaskForm(show = false) {
     }
 
     if (show) {
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        document.body.style.overflow = 'hidden'; 
         modalOverlay.classList.add('active');
         taskFormContainer.classList.add('active');
         taskListContainer.classList.add('fade');
     } else {
-        document.body.style.overflow = ''; // Restore scrolling
+        document.body.style.overflow = ''; 
         modalOverlay.classList.remove('active');
         taskFormContainer.classList.remove('active');
         taskListContainer.classList.remove('fade');
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newTaskItem = document.getElementById('new-task-item');
     const taskHistoryItem = document.getElementById('task-history-item');
 
-    // Handle post task button click
+    
     if (postTaskBtn) {
         let isDropdownVisible = false;
         
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             handleDropdown(isDropdownVisible);
         });
 
-        // Close dropdown when clicking outside
+        
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.nav-item') && isDropdownVisible) {
                 isDropdownVisible = false;
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handle new task item click
+    
     if (newTaskItem) {
         newTaskItem.addEventListener('click', (e) => {
             e.preventDefault();
@@ -271,14 +271,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handle cancel button
+    
     if (cancelTaskBtn) {
         cancelTaskBtn.addEventListener('click', () => {
             toggleTaskForm(false);
         });
     }
 
-    // Add task history click handler
+    
     if (taskHistoryItem) {
         taskHistoryItem.addEventListener('click', (e) => {
             e.preventDefault();
@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Update the form submission handling
+    
     const existingTaskForm = document.getElementById('task-form');
     if (existingTaskForm) {
         const originalSubmit = existingTaskForm.onsubmit;
@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Also handle form submission completion
+    
     const taskForm = document.getElementById('task-form');
     if (taskForm) {
         const originalSubmit = taskForm.onsubmit;
@@ -334,10 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Debounce function for performance
-// Handler for editing a task
+
+
 async function handleEditTask(task) {
-    // Populate the task form with existing data
+    
     const taskForm = document.getElementById('task-form');
     const titleInput = document.getElementById('task-title');
     const descInput = document.getElementById('task-description');
@@ -355,10 +355,10 @@ async function handleEditTask(task) {
         }
         venueInput.value = task.venue || '';
 
-        // Show the form
+        
         toggleTaskForm(true);
 
-        // Update the form submission handler
+        
         taskForm.onsubmit = async (e) => {
             e.preventDefault();
             try {
@@ -379,13 +379,13 @@ async function handleEditTask(task) {
     }
 }
 
-// Handler for deleting a task
+
 async function handleDeleteTask(task, cardEl) {
     if (!confirm('Are you sure you want to delete this quest?')) return;
 
     try {
         await deleteDoc(doc(db, 'tasks', task.id));
-        // Smoothly remove the card from UI without needing refresh
+        
         if (cardEl) {
             cardEl.style.transition = 'opacity 250ms ease, transform 250ms ease, height 250ms ease, margin 250ms ease, padding 250ms ease';
             const cardHeight = cardEl.offsetHeight + 'px';
@@ -409,7 +409,7 @@ async function handleDeleteTask(task, cardEl) {
     }
 }
 
-// Handler for completing a task
+
 async function handleCompleteTask(task) {
     try {
         await updateDoc(doc(db, 'tasks', task.id), {
@@ -417,9 +417,9 @@ async function handleCompleteTask(task) {
             completedAt: serverTimestamp()
         });
 
-        // After completion, prompt mutual rating via notifications
+        
         if (task && task.creator && task.assignedTo) {
-            // Notify the doer (voyager) to rate the questmaster
+            
             await sendNotification(
                 task.assignedTo,
                 `Please rate your Questmaster for "${task.title}"`,
@@ -427,7 +427,7 @@ async function handleCompleteTask(task) {
                 null,
                 { type: 'rate', ratingType: 'questmaster', rateTargetEmail: task.creator }
             );
-            // Notify the questmaster to rate the voyager
+            
             await sendNotification(
                 task.creator,
                 `Please rate the Voyager for "${task.title}"`,
@@ -454,7 +454,7 @@ function debounce(func, wait) {
     };
 }
 
-// Throttle function for performance
+
 function throttle(func, limit) {
     let inThrottle;
     return function() {
@@ -482,7 +482,7 @@ onAuthStateChanged(auth, async user => {
         console.log("User is logged out.");
         await updateAuthUI(null);
         
-        // Clean up listeners
+        
         if (tasksUnsubscribe) {
             tasksUnsubscribe();
             tasksUnsubscribe = null;
@@ -503,12 +503,12 @@ async function displayTasks() {
     const taskListContainer = document.querySelector('.task-list');
     if (!db || !taskListContainer) return;
     
-    // Clean up existing listener
+    
     if (tasksUnsubscribe) {
         tasksUnsubscribe();
     }
     
-    // Show loading state
+    
     taskListContainer.innerHTML = '<div class="loading">Loading tasks...</div>';
     
     try {
@@ -520,32 +520,32 @@ async function displayTasks() {
                 return;
             }
             
-            // Process tasks and fetch usernames/ratings
+            
             const tasks = [];
             for (const doc of snapshot.docs) {
                 const task = { id: doc.id, ...doc.data() };
                 
-                // Skip tasks that are assigned or closed
+                
                 if (task.status === 'closed' || !!task.assignedTo) {
                     continue;
                 }
                 
-                // Get username and ratings for creator
+                
                 const { username: creatorUsername, questmasterAverage } = await getUserAverages(task.creator);
                 task.creatorDisplay = creatorUsername || task.creator.split('@')[0];
                 task.creatorQuestmasterAvg = questmasterAverage || 0;
                 tasks.push(task);
             }
             
-            // Display tasks
+            
             tasks.forEach(task => {
                 const taskCard = document.createElement('div');
                 taskCard.className = 'task-card';
                 
-                // Format deadline date (dd/mm/yyyy)
+                
                 const dueDate = formatDateDDMMYYYY(task.deadline);
                 
-                // Check if current user has applied
+                
                 const currentUser = auth.currentUser;
                 const hasApplied = currentUser && task.applicants && task.applicants.includes(currentUser.email);
                 const isCreator = currentUser && task.creator === currentUser.email;
@@ -563,10 +563,10 @@ async function displayTasks() {
                 
                 const applicantCount = task.applicants ? task.applicants.length : 0;
                 
-                // Format reward with rupee symbol
+                
                 const formattedReward = `₹${task.reward}`;
 
-                // Determine incentive tier
+                
                 const tier = getIncentiveTier(Number(task.reward || 0));
                 const tierBadgeHtml = `<span class="tier-badge ${tier.className}" title="${tier.label}">${tier.icon} ${tier.label}</span>`;
                 
@@ -595,14 +595,14 @@ async function displayTasks() {
     }
 }
 
-// Utility function to escape HTML
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Incentive tier helper
+
 function getIncentiveTier(amount) {
     if (isNaN(amount) || amount <= 0) {
         return { label: 'Bronze', className: 'tier-bronze', icon: '⬤' };
@@ -619,7 +619,7 @@ function getIncentiveTier(amount) {
     return { label: 'Bronze', className: 'tier-bronze', icon: '⬤' };
 }
 
-// Format stored ISO or Firestore timestamp to dd/mm/yyyy
+
 function formatDateDDMMYYYY(deadlineField) {
     if (!deadlineField) return 'No due date';
     try {
@@ -641,7 +641,7 @@ function formatDateDDMMYYYY(deadlineField) {
     }
 }
 
-// Safely parse various stored date formats
+
 function parseAnyDate(field) {
     try {
         if (!field) return null;
@@ -712,14 +712,14 @@ async function handleFormSubmit(event) {
         return;
     }
     
-    // Validate reward amount
+    
     const reward = parseInt(rewardValue);
     if (isNaN(reward) || reward < 1 || reward > 10000) {
         showErrorMessage('Reward must be between ₹1 and ₹10,000');
         return;
     }
     
-    // Validate deadline (must be in the future)
+    
     const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
     const currentDateTime = new Date();
     
@@ -728,23 +728,23 @@ async function handleFormSubmit(event) {
         return;
     }
     
-    // Format deadline as ISO string for storage
+    
     const deadlineISO = deadlineDateTime.toISOString();
     
-    // Show loading state
+    
     const originalText = submitButton.textContent;
     submitButton.textContent = 'Posting...';
     submitButton.disabled = true;
     
     try {
-        // Get venue
+        
         const venue = document.getElementById('venue').value.trim();
         if (!venue) {
             showErrorMessage('Please specify a venue');
             return;
         }
 
-        // Create quest object
+        
         const taskData = {
             title: taskTitle,
             description: description,
@@ -757,21 +757,21 @@ async function handleFormSubmit(event) {
             deadline: deadlineISO
         };
         
-        // Save to Firestore
+        
         await addDoc(collection(db, 'tasks'), taskData);
         
-        // Also save to localStorage for GitHub Pages compatibility
+        
         saveTaskToStorage(taskData);
         
         document.getElementById('task-form').reset();
         showSuccessMessage('Task posted successfully!');
         
-        // Hide the task creation form after successful submission
+        
         const taskFormContainer = document.getElementById('newTaskFormContainer');
         const mainContent = document.getElementById('main-content');
         if (taskFormContainer && mainContent) {
             taskFormContainer.style.display = 'none';
-            mainContent.classList.remove('form-visible'); // Remove class for layout adjustment
+            mainContent.classList.remove('form-visible'); 
         }
     } catch (error) {
         console.error('Error posting task:', error);
@@ -783,7 +783,7 @@ async function handleFormSubmit(event) {
             showErrorMessage('Failed to post task. Please check your connection and try again.');
         }
     } finally {
-        // Reset button state
+        
         submitButton.textContent = originalText;
         submitButton.disabled = false;
     }
@@ -814,7 +814,7 @@ function showErrorMessage(message) {
 }
 
 document.addEventListener('click', async function(event) {
-    // Individual notification close button
+    
     if (event.target && event.target.classList.contains('notif-close')) {
         const notificationId = event.target.dataset.notificationId;
         if (notificationId) {
@@ -828,7 +828,7 @@ document.addEventListener('click', async function(event) {
         return;
     }
     
-    // Clear all notifications via delegation
+    
     if (event.target && event.target.id === 'clear-notifications') {
         try { await clearAllNotifications(); } catch (e) { console.error('Clear all failed:', e); }
         return;
@@ -855,7 +855,7 @@ document.addEventListener('click', async function(event) {
             return;
         }
 
-        // Show loading state
+        
         const originalText = button.textContent;
         button.textContent = 'Applying...';
         button.disabled = true;
@@ -887,7 +887,7 @@ document.addEventListener('click', async function(event) {
             await sendNotification(task.creator, `${currentUser.email} has applied to your task: "${task.title}"`, taskId, currentUser.email);
             showSuccessMessage('Your application has been sent successfully!');
             
-            // Update button to show applied state
+            
             button.textContent = 'Applied';
             button.style.background = '#28a745';
             button.disabled = true;
@@ -902,7 +902,7 @@ document.addEventListener('click', async function(event) {
                 showErrorMessage('Failed to apply. Please check your connection and try again.');
             }
         } finally {
-            // Reset button state if not applied
+            
             if (button.textContent === 'Applying...') {
                 button.textContent = originalText;
                 button.disabled = false;
@@ -912,7 +912,7 @@ document.addEventListener('click', async function(event) {
 });
 
 
-// THIS FUNCTION HAS BEEN UPDATED
+
 async function handleSignUp() {
     const email = document.getElementById('new-email').value.trim();
     const username = document.getElementById('new-username').value.trim();
@@ -941,7 +941,7 @@ async function handleSignUp() {
         return;
     }
     
-    // Show loading state
+    
     const originalText = signupButton.textContent;
     signupButton.textContent = 'Creating Account...';
     signupButton.disabled = true;
@@ -949,7 +949,7 @@ async function handleSignUp() {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         
-        // Save user data to Firestore
+        
         await addDoc(collection(db, 'users'), {
             email: email,
             username: username,
@@ -958,7 +958,7 @@ async function handleSignUp() {
             createdAt: serverTimestamp()
         });
         
-        // Also save to localStorage for GitHub Pages compatibility
+        
         const userData = {
             email: email,
             username: username,
@@ -986,7 +986,7 @@ async function handleSignUp() {
             showErrorMessage('Failed to create account. Please try again later.');
         }
     } finally {
-        // Reset button state
+        
         signupButton.textContent = originalText;
         signupButton.disabled = false;
     }
@@ -1002,7 +1002,7 @@ async function handleLogIn() {
         return;
     }
     
-    // Show loading state
+    
     const originalText = signinButton.textContent;
     signinButton.textContent = 'Signing In...';
     signinButton.disabled = true;
@@ -1032,7 +1032,7 @@ async function handleLogIn() {
             showErrorMessage('Invalid email or password');
         }
     } finally {
-        // Reset button state
+        
         signinButton.textContent = originalText;
         signinButton.disabled = false;
     }
@@ -1073,13 +1073,13 @@ async function updateAuthUI(user) {
         userInfo.style.display = 'flex';
         mainNav.style.display = 'flex';
         
-        // Update welcome message with username
+        
         await updateWelcomeMessage(user);
         
         document.getElementById('notification-bell').style.display = 'block';
         profileContainer.style.display = 'block';
         
-        // Update profile dropdown
+        
         updateProfileDropdown(user);
     } else {
         signinModal.style.display = 'flex';
@@ -1093,35 +1093,35 @@ async function updateAuthUI(user) {
 
 async function updateWelcomeMessage(user) {
     try {
-        // Get user data from localStorage
+        
         const userData = getUserDataFromStorage(user.email);
         document.getElementById('current-user').textContent = userData.username;
     } catch (error) {
         console.error('Error fetching username for welcome message:', error);
-        // Fallback to email prefix
+        
         document.getElementById('current-user').textContent = user.email.split('@')[0];
     }
 }
 
 function updateProfileDropdown(user) {
     try {
-        // Get user data from localStorage
+        
         const userData = getUserDataFromStorage(user.email);
         
-        // Update username field
+        
         const usernameInput = document.getElementById('profile-username-input');
         if (usernameInput) {
             usernameInput.value = userData.username || user.email.split('@')[0];
         }
         
-        // Update email display
+        
         const emailDisplay = document.getElementById('profile-email-display');
         if (emailDisplay) {
             emailDisplay.textContent = user.email;
         }
     } catch (error) {
         console.error('Error updating profile dropdown:', error);
-        // Fallback values
+        
         const usernameInput = document.getElementById('profile-username-input');
         if (usernameInput) {
             usernameInput.value = user.email.split('@')[0];
@@ -1139,7 +1139,7 @@ function getUserDataFromStorage(email) {
         if (userData) {
             return JSON.parse(userData);
         }
-        // Return default data if not found
+        
         return {
             username: email.split('@')[0],
             email: email,
@@ -1182,7 +1182,7 @@ async function getUsernameByEmail(email) {
     }
 }
 
-// Fetch username and average ratings for a user
+
 async function getUserAverages(email) {
     try {
         const q = query(collection(db, 'users'), where('email', '==', email));
@@ -1236,7 +1236,7 @@ async function displayNotifications() {
     
     if (!currentUser || !notificationList) return;
     
-    // Clean up existing listener
+    
     if (notificationsUnsubscribe) {
         notificationsUnsubscribe();
     }
@@ -1246,7 +1246,7 @@ async function displayNotifications() {
     notificationsUnsubscribe = onSnapshot(q, (snapshot) => {
         notificationList.innerHTML = '';
         const unreadCount = snapshot.docs.filter(doc => !doc.data().read).length;
-        // Update badge visibility
+        
         if (unreadCount > 0) {
         notificationCount.textContent = unreadCount;
             notificationCount.style.display = 'flex';
@@ -1254,7 +1254,7 @@ async function displayNotifications() {
             notificationCount.textContent = '';
             notificationCount.style.display = 'none';
         }
-        // Enable/disable Clear All
+        
         if (clearBtn) clearBtn.disabled = snapshot.empty;
         
         if (snapshot.empty) {
@@ -1269,13 +1269,13 @@ async function displayNotifications() {
             const timestamp = notif.timestamp ? new Date(notif.timestamp.seconds * 1000).toLocaleString() : 'Just now';
             
             let actionButton = '';
-            console.log('Processing notification:', notif); // Debug log
+            console.log('Processing notification:', notif); 
             
-            // Check if this is an application notification and we have the required data
+            
             if (notif.type === 'application' && notif.taskId && notif.applicantEmail) {
                 actionButton = `<button class="assign-btn" data-task-id="${notif.taskId}" data-applicant="${notif.applicantEmail}" data-notification-id="${notif.id}">Assign Task</button>`;
-                console.log('Added assign button for application notification:', notif.id); // Debug log
-                // Fetch and append applicant (voyager) rating
+                console.log('Added assign button for application notification:', notif.id); 
+                
                 getUserAverages(notif.applicantEmail).then(u => {
                     const ratingNode = document.createElement('div');
                     ratingNode.style.marginTop = '6px';
@@ -1287,12 +1287,12 @@ async function displayNotifications() {
                 const buttons = [1,2,3,4,5].map(n => `<button class=\"rate-btn\" data-rating=\"${n}\" data-rating-type=\"${notif.ratingType}\" data-target-email=\"${notif.rateTargetEmail}\" data-notification-id=\"${notif.id}\">${n}★</button>`).join(' ');
                 actionButton = `<div class=\"rating-actions\">Rate ${notif.ratingType === 'questmaster' ? 'Questmaster' : 'Voyager'}: ${buttons}</div>`;
             } else if (!notif.type && notif.message && notif.message.includes('has applied to your task')) {
-                // Handle legacy notifications that don't have the type field
-                // Extract task ID and applicant email from the message or use fallback
+                
+                
                 const applicantMatch = notif.message.match(/([^\s]+@[^\s]+)\s+has applied to your task:/);
                 if (applicantMatch && notif.taskId) {
                     actionButton = `<button class="assign-btn" data-task-id="${notif.taskId}" data-applicant="${applicantMatch[1]}" data-notification-id="${notif.id}">Assign Task</button>`;
-                    console.log('Added assign button for legacy notification:', notif.id); // Debug log
+                    console.log('Added assign button for legacy notification:', notif.id); 
                 }
             }
             
@@ -1308,7 +1308,7 @@ async function displayNotifications() {
                     markNotificationAsRead(notif.id);
                 }
             });
-            // Rating button handler
+            
             notifElement.addEventListener('click', async (e) => {
                 const btn = e.target.closest('.rate-btn');
                 if (!btn) return;
@@ -1355,7 +1355,7 @@ async function clearAllNotifications() {
         batch.delete(doc.ref);
     });
     await batch.commit();
-    // Optimistically update UI
+    
     const notificationList = document.getElementById('notification-list');
     const notificationCount = document.getElementById('notification-count');
     const clearBtn = document.getElementById('clear-notifications');
@@ -1368,7 +1368,7 @@ async function clearAllTasks() {
     try {
         console.log('Starting to clear all tasks...');
         
-        // Get all tasks
+        
         const q = query(collection(db, 'tasks'));
         const snapshot = await getDocs(q);
         
@@ -1380,7 +1380,7 @@ async function clearAllTasks() {
         
         console.log(`Found ${snapshot.docs.length} tasks to delete`);
         
-        // Delete in batches (Firestore batch limit is 500)
+        
         const batch = writeBatch(db);
         let batchCount = 0;
         
@@ -1388,14 +1388,14 @@ async function clearAllTasks() {
             batch.delete(doc.ref);
             batchCount++;
             
-            // Commit batch when it reaches 500 operations
+            
             if (batchCount >= 500) {
                 batch.commit();
                 batchCount = 0;
             }
         });
         
-        // Commit remaining operations
+        
         if (batchCount > 0) {
             await batch.commit();
         }
@@ -1535,7 +1535,7 @@ async function assignTask(taskId, applicantEmail, notificationId) {
     }
 
     try {
-        // Get task details
+        
         const taskRef = doc(db, 'tasks', taskId);
         const taskDoc = await getDoc(taskRef);
         
@@ -1546,37 +1546,37 @@ async function assignTask(taskId, applicantEmail, notificationId) {
         
         const task = taskDoc.data();
         
-        // Verify the current user is the task creator
+        
         if (task.creator !== currentUser.email) {
             showErrorMessage('Only the task creator can assign tasks');
             return;
         }
         
-        // Check if task is already assigned
+        
         if (task.status === 'closed' && task.assignedTo) {
             showErrorMessage('This task has already been assigned');
             return;
         }
         
-        // Update task with assigned user and status
+        
         await updateDoc(taskRef, {
             assignedTo: applicantEmail,
-            status: 'closed', // Mark as closed to remove from available tasks
+            status: 'closed', 
             assignedAt: serverTimestamp()
         });
         
-        // Send notification to the assigned user
+        
         await sendNotification(applicantEmail, `Congratulations! You have been assigned the task: "${task.title}". Reward: ₹${task.reward}`);
         
-        // Mark the notification as read
+        
         await markNotificationAsRead(notificationId);
         
-        // Send notification to task creator
+        
         await sendNotification(currentUser.email, `Task "${task.title}" has been assigned to ${applicantEmail}`);
         
         showSuccessMessage(`Task assigned to ${applicantEmail} successfully!`);
         
-        // Close notification panel
+        
         hideNotificationPanel();
         
     } catch (error) {
@@ -1595,13 +1595,13 @@ async function assignTask(taskId, applicantEmail, notificationId) {
 function showNotificationPanel() {
     const panel = document.getElementById('notification-panel');
     const overlay = document.getElementById('notification-overlay');
-    // ensure visible via style in addition to class for robustness
+    
     panel.style.display = 'block';
     panel.classList.add('show');
     overlay.classList.add('show');
 }
 
-// Debug function to test notification display
+
 async function createTestNotification() {
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -1610,7 +1610,7 @@ async function createTestNotification() {
     }
     
     try {
-        // Create a test notification with assign button in the database
+        
         await addDoc(collection(db, 'notifications'), {
             user: currentUser.email,
             message: "test@iitj.ac.in has applied to your task: \"Test Task\"",
@@ -1637,7 +1637,7 @@ function hideNotificationPanel() {
     panel.style.display = 'none';
 }
 
-// Character counting functionality
+
 function setupCharacterCounters() {
     const titleInput = document.getElementById('task-title');
     const descInput = document.getElementById('description');
@@ -1648,7 +1648,7 @@ function setupCharacterCounters() {
         const count = input.value.length;
         counter.textContent = `${count}/${max} characters`;
         
-        // Update styling based on usage
+        
         counter.classList.remove('warning', 'error');
         if (count > max * 0.8) {
             counter.classList.add('warning');
@@ -1694,17 +1694,17 @@ function handleSaveProfileChanges() {
             return;
         }
         
-        // Get current user data
+        
         const userData = getUserDataFromStorage(currentUser.email);
         
-        // Update username
+        
         userData.username = newUsername;
         
-        // Save to localStorage
+        
         const success = saveUserDataToStorage(currentUser.email, userData);
         
         if (success) {
-            // Update welcome message
+            
             document.getElementById('current-user').textContent = newUsername;
             showSuccessMessage('Username updated successfully!');
         } else {
@@ -1718,7 +1718,7 @@ function handleSaveProfileChanges() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Hide the task form container on page load
+    
     const taskFormContainer = document.getElementById('newTaskFormContainer');
     if (taskFormContainer) {
         taskFormContainer.style.display = 'none';
@@ -1726,7 +1726,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('task-form').addEventListener('submit', handleFormSubmit);
     
-    // Cancel task button functionality
+    
     const cancelTaskBtn = document.getElementById('cancel-task-btn');
     if (cancelTaskBtn) {
         cancelTaskBtn.addEventListener('click', function() {
@@ -1734,14 +1734,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const mainContent = document.getElementById('main-content');
             if (taskFormContainer && mainContent) {
                 taskFormContainer.style.display = 'none';
-                mainContent.classList.remove('form-visible'); // Remove class for layout adjustment
-                // Reset the form when canceling
+                mainContent.classList.remove('form-visible'); 
+                
                 document.getElementById('task-form').reset();
             }
         });
     }
     
-    // Set minimum date for deadline date input (today)
+    
     const deadlineDateInput = document.getElementById('deadline-date');
     if (deadlineDateInput) {
         const today = new Date().toISOString().split('T')[0];
@@ -1750,32 +1750,32 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('signin-btn').addEventListener('click', handleLogIn);
     
-    // Add Enter key functionality to sign-in form
+    
     const signinForm = document.getElementById('signin-form');
     if (signinForm) {
         signinForm.addEventListener('keydown', function(event) {
             if (event.key === 'Enter' || event.keyCode === 13) {
-                event.preventDefault(); // Prevent form submission
-                handleLogIn(); // Trigger sign-in
+                event.preventDefault(); 
+                handleLogIn(); 
             }
         });
     }
     
     document.getElementById('signup-btn').addEventListener('click', handleSignUp);
     
-    // Add Enter key functionality to sign-up form
+    
     const signupForm = document.getElementById('signup-form');
     if (signupForm) {
         signupForm.addEventListener('keydown', function(event) {
             if (event.key === 'Enter' || event.keyCode === 13) {
-                event.preventDefault(); // Prevent form submission
-                handleSignUp(); // Trigger sign-up
+                event.preventDefault(); 
+                handleSignUp(); 
             }
         });
     }
     document.getElementById('signout-btn').addEventListener('click', handleLogOut);
     
-    // Navigation dropdown functionality
+    
     const postTaskBtn = document.getElementById('post-task-btn');
     const postTaskSubmenu = document.getElementById('post-task-submenu');
     const navItem = document.querySelector('.nav-item');
@@ -1787,7 +1787,7 @@ document.addEventListener('DOMContentLoaded', function() {
             navItem.classList.toggle('active');
         });
         
-        // Close dropdown when clicking outside
+        
         document.addEventListener('click', function(e) {
             if (!postTaskBtn.contains(e.target) && !postTaskSubmenu.contains(e.target)) {
                 postTaskSubmenu.classList.remove('show');
@@ -1795,42 +1795,42 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Handle submenu item clicks
+        
         const submenuItems = postTaskSubmenu.querySelectorAll('.submenu-item');
         submenuItems.forEach(item => {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
                 const itemId = this.id;
                 
-                // Handle different submenu actions
+                
                 switch(itemId) {
                     case 'new-task-item':
-                        // Show the task creation form
+                        
                         const taskFormContainer = document.getElementById('newTaskFormContainer');
                         const mainContent = document.getElementById('main-content');
                         if (taskFormContainer && mainContent) {
                             console.log("Button clicked, attempting to show form");
                             taskFormContainer.style.display = 'block';
-                            mainContent.classList.add('form-visible'); // Add class for layout adjustment
-                            // Scroll to the form for better UX
+                            mainContent.classList.add('form-visible'); 
+                            
                             taskFormContainer.scrollIntoView({ behavior: 'smooth' });
                         }
                         break;
                     case 'task-templates-item':
-                        // No popup
+                        
                         break;
                     case 'my-tasks-item':
-                        // No popup
+                        
                         break;
                     case 'task-history-item':
-                        // No popup
+                        
                         break;
                     case 'view-drafts-item':
-                        // No popup
+                        
                         break;
                 }
                 
-                // Close dropdown after action
+                
                 postTaskSubmenu.classList.remove('show');
                 navItem.classList.remove('active');
             });
@@ -1839,25 +1839,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('signin-toggle').addEventListener('click', showSignInForm);
     document.getElementById('signup-toggle').addEventListener('click', showSignUpForm);
-    // Bell icon toggle functionality
+    
     document.getElementById('bell-icon').addEventListener('click', function() {
         const panel = document.getElementById('notification-panel');
         const overlay = document.getElementById('notification-overlay');
         
         if (panel.classList.contains('show')) {
-            // Hide panel
+            
             panel.classList.remove('show');
             overlay.classList.remove('show');
             panel.style.display = 'none';
         } else {
-            // Show panel
+            
             panel.classList.add('show');
             overlay.classList.add('show');
             panel.style.display = 'block';
         }
     });
     
-    // Global functions for onclick handlers
+    
     window.closeNotificationPanel = function() {
         console.log('Close button clicked via onclick!');
         const panel = document.getElementById('notification-panel');
@@ -1869,14 +1869,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window.clearAllAndClose = function() {
         console.log('Clear All button clicked via onclick!');
-        // Empty the notification list
+        
         const notificationList = document.getElementById('notification-list');
         notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
         
-        // Clear from database
+        
         clearAllNotifications();
         
-        // Hide the panel
+        
         const panel = document.getElementById('notification-panel');
         const overlay = document.getElementById('notification-overlay');
         panel.classList.remove('show');
@@ -1884,12 +1884,12 @@ document.addEventListener('DOMContentLoaded', function() {
         panel.style.display = 'none';
     };
     
-    // Overlay click does nothing (only close button should close)
+    
     document.getElementById('notification-overlay').addEventListener('click', function(e) {
         e.stopPropagation();
     });
     
-    // Profile dropdown functionality
+    
     const profileIcon = document.getElementById('profile-icon');
     const profileDropdown = document.getElementById('profile-dropdown');
     
@@ -1899,14 +1899,14 @@ document.addEventListener('DOMContentLoaded', function() {
             profileDropdown.classList.toggle('show');
         });
         
-        // Close dropdown when clicking outside
+        
         document.addEventListener('click', function(e) {
             if (!profileIcon.contains(e.target) && !profileDropdown.contains(e.target)) {
                 profileDropdown.classList.remove('show');
             }
         });
         
-        // Save changes functionality
+        
         const profileSave = document.getElementById('profile-save');
         if (profileSave) {
             profileSave.addEventListener('click', function() {
@@ -1915,7 +1915,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Rating modal functionality
+        
         const profileRating = document.getElementById('profile-rating');
         const ratingModal = document.getElementById('rating-modal');
         const ratingModalClose = document.getElementById('rating-modal-close');
@@ -1931,7 +1931,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ratingModalClose.addEventListener('click', hideRatingModal);
         }
         
-        // Close rating modal when clicking outside
+        
         if (ratingModal) {
             ratingModal.addEventListener('click', function(e) {
                 if (e.target === ratingModal) {
