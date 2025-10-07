@@ -75,6 +75,20 @@ body::before {
     grid-column: 1 / -1; /* Span full width of main grid */
 }
 
+/* Side-by-side layout for Quest History columns */
+.task-history-columns {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.history-column-wrap {
+    flex: 1 1 520px;
+    max-width: 580px;
+}
+
 .task-history-column {
     /* ... other styles ... */
     padding: 2.5rem 4rem 2.75rem 4rem; /* INCREASED HORIZONTAL PADDING for better scroll alignment */
@@ -83,12 +97,13 @@ body::before {
 }
 
 .task-history-column {
-    background: url('scroll.jpg') no-repeat center center/contain; /* 🔑 IMPORTANT: Use 'contain' or '100% 100%' */
+    background: url('scroll.png') no-repeat center center/100% 100%;
     max-width: 800px; /* 🔑 Change: INCREASE MAX-WIDTH */
     width: 100%; /* Ensure it's responsive up to max-width */
     height: 600px; /* 🔑 Change: SET A FIXED HEIGHT (or larger min-height) */
-    padding: 2.5rem 4rem 2.75rem 4rem; /* Re-apply the increased padding for text margins */
-    overflow-y: auto; /* Adds a scrollbar if content exceeds 600px */
+    padding: 0; /* We'll position inner scroll area with insets */
+    overflow: hidden; /* Clip overflowing content to avoid overlaying curled edges */
+    position: relative;
 }
 
 .task-history-column h2 {
@@ -100,12 +115,29 @@ body::before {
 }
 
 .task-history-list {
+    position: absolute;
+    top: 4.5rem;   /* match visual parchment margins */
+    bottom: 3.25rem;
+    left: 5rem;
+    right: 5rem;
+    overflow-y: auto; /* Scroll only the inner content */
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    max-height: 70vh;
-    overflow-y: auto;
-    padding-right: 10px;
+    gap: 0.75rem;
+    padding-right: 0.25rem; /* room for scrollbar */
+    overscroll-behavior: contain;
+}
+
+/* Ensure text stays within parchment bounds */
+.task-history-column, .task-history-column * {
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+.task-history-card h3,
+.task-history-card p {
+    margin: 0;
+    text-align: center;
 }
 
 .task-history-list::-webkit-scrollbar {
@@ -123,15 +155,15 @@ body::before {
 }
 
 .task-history-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent; /* Show parchment behind the items */
+    border-radius: 0;
+    padding: 0.5rem 0;
+    border: none;
     transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .task-history-card:hover {
@@ -1402,7 +1434,7 @@ header h1 .home-link:focus-visible {
     cursor: pointer;
     position: relative;
     background: rgba(80,55,35,0.35);
-    color: #f3e9d2;
+    color: #f3e9d2; /* default light text */
 }
 
 /* Per-notification close button */
@@ -1444,13 +1476,13 @@ header h1 .home-link:focus-visible {
 
 .notification-item p {
     margin: 0 0 0.5rem 0;
-    color: #495057;
+    color: #ffffff; /* make primary message white */
     font-size: 0.9rem;
     line-height: 1.4;
 }
 
 .notification-item small {
-    color: #6c757d;
+    color: rgba(255,255,255,0.8); /* light timestamp */
     font-size: 0.8rem;
 }
 
