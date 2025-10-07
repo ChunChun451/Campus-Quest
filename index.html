@@ -15,7 +15,7 @@
     const proceedBtn = document.querySelector('.proceed-btn');
     const cursor = document.getElementById('custom-cursor');
     
-    // Smooth cursor tracking and button visibility
+    
     let timeout;
     document.addEventListener('mousemove', e => {
       if (timeout) {
@@ -23,29 +23,26 @@
       }
       
       timeout = window.requestAnimationFrame(() => {
-        // Update custom cursor position
+        
         cursor.style.left = e.clientX + 'px';
         cursor.style.top = e.clientY + 'px';
         
-        // Check if cursor is near the button
+        
         const btnRect = proceedBtn.getBoundingClientRect();
         const btnCenterX = btnRect.left + btnRect.width / 2;
         const btnCenterY = btnRect.top + btnRect.height / 2;
         
-        // Calculate distance from cursor to button center
         const distance = Math.sqrt(
           Math.pow(e.clientX - btnCenterX, 2) + 
           Math.pow(e.clientY - btnCenterY, 2)
         );
         
-        // Set button opacity based on distance
-        const maxDistance = 150; // This should match the spotlight radius
+        const maxDistance = 150; 
         const opacity = Math.max(0.1, Math.min(1, 1 - (distance / maxDistance)));
         proceedBtn.style.opacity = opacity;
       });
     });
 
-    // Hide cursor when it leaves the window
     document.addEventListener('mouseleave', () => {
       cursor.style.display = 'none';
     });
