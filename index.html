@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" style="cursor: url('./torch.png') 16 16, auto !important;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campus Quest — Landing</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="landing-body torch-cursor">
+  <button class="proceed-btn torch-cursor" onclick="window.location.href='auth.html'">Proceed</button>
+  <div id="custom-cursor" class="custom-cursor"></div>
+
+  <script>
+    const proceedBtn = document.querySelector('.proceed-btn');
+    const cursor = document.getElementById('custom-cursor');
+    
+    // Smooth cursor tracking and button visibility
+    let timeout;
+    document.addEventListener('mousemove', e => {
+      if (timeout) {
+        window.cancelAnimationFrame(timeout);
+      }
+      
+      timeout = window.requestAnimationFrame(() => {
+        // Update custom cursor position
+        cursor.style.left = e.clientX + 'px';
+        cursor.style.top = e.clientY + 'px';
+        
+        // Check if cursor is near the button
+        const btnRect = proceedBtn.getBoundingClientRect();
+        const btnCenterX = btnRect.left + btnRect.width / 2;
+        const btnCenterY = btnRect.top + btnRect.height / 2;
+        
+        // Calculate distance from cursor to button center
+        const distance = Math.sqrt(
+          Math.pow(e.clientX - btnCenterX, 2) + 
+          Math.pow(e.clientY - btnCenterY, 2)
+        );
+        
+        // Set button opacity based on distance
+        const maxDistance = 150; // This should match the spotlight radius
+        const opacity = Math.max(0.1, Math.min(1, 1 - (distance / maxDistance)));
+        proceedBtn.style.opacity = opacity;
+      });
+    });
+
+    // Hide cursor when it leaves the window
+    document.addEventListener('mouseleave', () => {
+      cursor.style.display = 'none';
+    });
+
+    document.addEventListener('mouseenter', () => {
+      cursor.style.display = 'block';
+    });
+  </script>
+</body>
+</html>

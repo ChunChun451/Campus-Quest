@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Quest</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-body">
+    <header>
+        <h1><a href="auth.html" class="home-link" aria-label="Go to Home">Campus Quest</a></h1>
+        
+        <nav class="main-nav" id="main-nav" style="display: none;">
+            <div class="nav-item">
+                <button class="nav-button" id="post-task-btn">
+                    Quest Options
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div class="nav-submenu" id="post-task-submenu">
+                    <a href="#" class="submenu-item" id="new-task-item">Create New Quest</a>
+                    <a href="#" class="submenu-item" id="task-history-item">Quest History</a>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="header-controls">
+            <div class="notification-bell" id="notification-bell" style="display: none;">
+                <div class="bell-icon" id="bell-icon">
+                    🔔
+                    <span class="notification-count" id="notification-count">0</span>
+                </div>
+            </div>
+            
+            <div class="profile-container" id="profile-container" style="display: none;">
+                <div class="profile-icon" id="profile-icon">👤</div>
+                <div class="profile-dropdown" id="profile-dropdown">
+                    <div class="profile-info">
+                        <div class="profile-field">
+                            <label for="profile-username-input">Username:</label>
+                            <input type="text" id="profile-username-input" class="profile-input" placeholder="Enter username">
+                        </div>
+                        <div class="profile-field">
+                            <label for="profile-email-display">Email:</label>
+                            <div id="profile-email-display" class="profile-email-display">user@example.com</div>
+                        </div>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="profile-save" id="profile-save">Save Changes</button>
+                        <button class="profile-rating" id="profile-rating">My Rating</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="notification-panel" id="notification-panel">
+                <div class="panel-header">
+                    <h3>Notifications</h3>
+                    <div class="panel-controls">
+                        <button id="clear-notifications" class="clear-btn" type="button" onclick="clearAllAndClose()">Clear All</button>
+                        <button id="close-notifications" class="close-btn" type="button" onclick="closeNotificationPanel()">×</button>
+                    </div>
+                </div>
+                <div class="notification-list" id="notification-list">
+                    </div>
+            </div>
+            <div class="user-info" id="user-info" style="display: none;">
+                <span id="welcome-message">Welcome, <span id="current-user"></span>!</span>
+                <button id="signout-btn">Sign Out</button>
+            </div>
+        </div>
+    </header>
+    
+    <div id="signin-modal" class="signin-modal">
+        <div class="signin-content">
+            <h2>Welcome to CampusQuest</h2>
+            <p id="modal-subtitle">Please sign in to access the task board</p>
+            
+            <div class="auth-toggle">
+                <button id="signin-toggle" class="toggle-btn active">Sign In</button>
+                <button id="signup-toggle" class="toggle-btn">Sign Up</button>
+            </div>
+            
+            <form id="signin-form" class="auth-form">
+                <input type="email" id="username" placeholder="Enter your email" required>
+                <div class="password-container">
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
+                </div>
+                <button type="button" id="signin-btn">Sign In</button>
+                <div id="signin-error" class="auth-error" style="display: none;"></div>
+            </form>
+            
+            <form id="signup-form" class="auth-form hidden">
+                <input type="email" id="new-email" placeholder="Enter your IITJ email" required>
+                <input type="text" id="new-username" placeholder="Choose a username" required>
+                <div class="password-container">
+                    <input type="password" id="new-password" placeholder="Create a password" required>
+                    <span class="toggle-password" onclick="togglePassword('new-password', this)">👁️</span>
+                </div>
+                <div class="password-container">
+                    <input type="password" id="confirm-password" placeholder="Confirm password" required>
+                    <span class="toggle-password" onclick="togglePassword('confirm-password', this)">👁️</span>
+                </div>
+                <button type="button" id="signup-btn">Create Account</button>
+                <div id="signup-error" class="auth-error" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <main id="main-content" style="display: none;">
+        <section class="task-form-container" id="newTaskFormContainer">
+            <form id="task-form" class="centered-form">
+                <h2>Post a New Quest</h2>
+                <div class="form-group">
+                    <label for="task-title">Quest Title:</label>
+                    <input type="text" id="task-title" name="task-title" maxlength="100" required>
+                    <div class="char-count" id="title-count">0/100 characters</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" rows="4" maxlength="500" required></textarea>
+                    <div class="char-count" id="desc-count">0/500 characters</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="venue">Venue:</label>
+                    <input type="text" id="venue" name="venue" placeholder="e.g., O3 E-325" required>
+                    <div class="venue-help">Enter the meeting location (e.g., O3 E-325, Library 2nd Floor, etc.)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reward">Reward (₹):</label>
+                    <input type="number" id="reward" name="reward" min="1" max="10000" step="1" placeholder="Enter amount in ₹" required>
+                    <div class="reward-help">Enter cash reward amount in Indian Rupees (₹1 - ₹10,000)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="deadline-date">Deadline Date:</label>
+                    <input type="date" id="deadline-date" name="deadline-date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="deadline-time">Deadline Time:</label>
+                    <input type="time" id="deadline-time" name="deadline-time" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit">Post Task</button>
+                    <button type="button" id="cancel-task-btn">Cancel</button>
+                </div>
+            </form>
+        </section>
+        
+        <section class="task-list-container">
+            <div class="section-title-image" id="available-title">
+                <img src="availablequests.png" alt="Available Quests" class="title-img" />
+            </div>
+            <div class="task-list">
+            </div>
+        </section>
+
+        <!-- Quest History View -->
+        <section class="task-history-container" id="taskHistoryContainer" style="display: none;">
+            <div class="task-history-columns">
+                <div class="history-column-wrap">
+                    <div class="section-title-image">
+                        <img src="questmaster.png" alt="Questmaster" class="title-img" />
+                    </div>
+                    <div class="task-history-column questmaster">
+                        <div class="task-history-list" id="questmasterHistory">
+                        </div>
+                    </div>
+                </div>
+                <div class="history-column-wrap">
+                    <div class="section-title-image">
+                        <img src="voyager.png" alt="Voyager" class="title-img" />
+                    </div>
+                    <div class="task-history-column voyager">
+                        <div class="task-history-list" id="voyagerHistory">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <div class="notification-overlay" id="notification-overlay"></div>
+    
+    <!-- Rating Modal -->
+    <div class="rating-modal" id="rating-modal">
+        <div class="rating-modal-content">
+            <div class="rating-modal-header">
+                <h2>My Ratings</h2>
+                <button class="rating-modal-close" id="rating-modal-close">&times;</button>
+            </div>
+            <div class="rating-sections">
+                <div class="rating-section questmaster-section">
+                    <h3>As Questmaster</h3>
+                    <p>Each time you post tasks and someone rates you based on your loyalty towards promised incentive, your rating as questmaster increases.</p>
+                    <div class="star-rating-display" id="questmaster-rating">
+                        <div class="stars">
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                        </div>
+                        <div class="rating-text" id="questmaster-rating-text">No ratings yet</div>
+                    </div>
+                </div>
+                <div class="rating-section voyager-section">
+                    <h3>As Voyager</h3>
+                    <p>Each time you complete a task and someone rates you based on your loyalty towards time and effort, your rating as voyager increases.</p>
+                    <div class="star-rating-display" id="voyager-rating">
+                        <div class="stars">
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                            <span class="star">☆</span>
+                        </div>
+                        <div class="rating-text" id="voyager-rating-text">No ratings yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="script.js"></script>
+</body>
+</html>
